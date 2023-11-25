@@ -103,3 +103,6 @@ void gen_field(int field[10][10],int ships[10][5],int t){
         }
     }
 }
+
+
+

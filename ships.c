@@ -1,33 +1,3 @@
-#include <netinet/in.h>
-#include <netdb.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <error.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <time.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <math.h>
-#include <dirent.h>
 
 #define errExit(msg)    do { perror(msg); _exit(EXIT_FAILURE); } while (0)
 
@@ -69,6 +39,7 @@ void generate_shots(int shots[10][10]){
 }
 
 void print_matrix(int mat[10][10]){
+    printf("\n");
     for(int i = 0 ; i < 10 ; i++){
         for(int j = 0 ; j < 10 ;j++){
             // printf("%d ",mat[i][j]);
@@ -82,7 +53,7 @@ void print_matrix(int mat[10][10]){
 
 
 
-void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* name,struct info arr_info[]){
+void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* name,struct info arr_info[], int wfd,int mat_inc[14][14]){
 
   dprintf(1,"%d start SESSION\n",msgsock);
     int n;   
@@ -93,41 +64,10 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
    int rval,sval;
    const int enable = 1; 
 
-
-//    do {
-    //   if ((rval = read(msgsock, ibuf, 1024)) == -1)
-    //      perror("reading stream message");
-    //   dprintf(1,"[%d]\n",rval);
-    //   if (rval == 0)
-    //      printf("Connection finished\n");
-         
       if(strncmp(ibuf,"GET",3)==0){
-        //  dprintf(1,"[%s]\n",ibuf);
-
          struct stat filestat;
          int f;
          int i;
-         for(i = 4 ; ibuf[i] != ' ' ; i++){
-         }
-         char* name = malloc(sizeof(char)*(i-4));
-         
-         for(i = 4 ; ibuf[i] != ' ' ; i++){
-            name[i-4] = ibuf[i];
-         }
-         dprintf(1,"[%s]\n",name);
-
-
-        int fd;
-        if((fd=open("/tmp/fifo001", O_RDWR)) == - 1)  {
-            perror("open fifo");
-            exit(0);
-        }
-        write(fd,name,strlen(name));
-
-        // if(strcmp(name,"/favicon.ico")==0){
-        //     exit(1);
-        // }
-
         if ((f = open("welcome", O_RDONLY)) == -1) {
                 if ((f = open("error", O_RDONLY)) == -1){
                     perror("open: ");
@@ -139,22 +79,13 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
          char* try;
          try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
          sval=send(msgsock,try,strlen(try),0);
+         int status = 2;
+         write(wfd,&status,sizeof(int));
       }
       else if(strncmp(ibuf,"POST",4)==0){
-                //  dprintf(1,"[%s]\n",ibuf);
-
             struct stat filestat;
             int f;
             int i;
-            // for(i = 5 ; ibuf[i] != ' ' ; i++){}
-            // char* name = malloc(sizeof(char)*(i-5));
-            
-            // for(i = 5 ; ibuf[i] != ' ' ; i++){
-            //     name[i-5] = ibuf[i];
-            // }
-            // dprintf(1,"name[%s]\n",name);
-            dprintf(1,"%d start POST\n",msgsock);
-
             for(i = strlen(ibuf)-1 ; ibuf[i]!='=' ;i--){}
             char* mes = malloc(sizeof(char)*(strlen(ibuf)-i));
             int c = 0;
@@ -186,7 +117,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
             }
             else{
                 if(strcmp(mes,"start")==0){
-                    gen_field(arr_info[c].myShips,arr_info[c2].myShips_info,0);
+                    gen_field(arr_info[c].myShips,arr_info[c].myShips_info,0);
                     generate_shots(arr_info[c].myShots);
                     print_matrix(arr_info[c].myShips);
                     print_matrix(arr_info[c].myShots);
@@ -253,12 +184,10 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         for(int j = 0 ; j < 10 ; j++){
                             if(arr_info[c].myShips[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
                             else rc = send(client_sock, "1" , 1 , 0);
-                            // printf("send %d ",rc);
                         }
                         for(int j = 0 ; j < 10 ; j++){
                             if(arr_info[c].myShots[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
                             else rc = send(client_sock, "1" , 1 , 0);
-                            // printf("send %d ",rc);
                         }
                     }
                     rc = send(client_sock, "F" , 1 , 0);
@@ -319,18 +248,14 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         for(int j = 0 ; j < 10 ; j++){
                             if(arr_info[c2].myShips[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
                             else rc = send(client_sock2, "1" , 1 , 0);
-                            // printf("send %d ",rc);
                         }
                         for(int j = 0 ; j < 10 ; j++){
                             if(arr_info[c2].myShots[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
                             else rc = send(client_sock2, "1" , 1 , 0);
-                            // printf("send %d ",rc);
                         }
                     }
                     rc = send(client_sock2, "F" , 1 , 0);
                     rc = recv(client_sock2, obuf, BUF,0);
-                    // sval=send(msgsock,obuf,strlen(obuf),0);
-                   
                     close(client_sock2);
                     dprintf(1,"%s",obuf);
 
@@ -346,6 +271,24 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
                     sval=send(msgsock,try,strlen(try),0);
                     sval=send(msgsock,obuf,strlen(obuf),0);
+                    int w;
+                    int status = 3;
+                    w = write(wfd,&status,sizeof(int));dprintf(1,"w = %d ",w);
+                    for(int i = 0 ; i < 10 ; i++){
+                        for(int j = 0 ; j < 5 ; j++){
+                            w = write(wfd,&arr_info[c2].myShips_info[i][j],sizeof(int));dprintf(1,"w = %d ",w);
+                        }
+                    }
+                    w = write(wfd,&c,sizeof(int));dprintf(1,"w = %d ",w);
+                    for(int i = 0 ; i < 10 ; i++){
+                        for(int j = 0 ; j < 5 ; j++){
+                            w = write(wfd,&arr_info[c].myShips_info[i][j],sizeof(int));dprintf(1,"w = %d ",w);
+                        }
+                    }
+                }
+                // HANDLING MOVE
+                else if(strlen(mes) == 3 && mes[0]=='m' && mes[1]>=48 && mes[2]>=48 && mes[1]<=57 && mes[1]<=57){
+
                 }
                 // JUST MESSAGES
                 else{
@@ -409,12 +352,6 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 dprintf(1,"%s %d\n",names[c],arr[c]);
                 sval=send(arr[c],obuf,strlen(obuf),0);
 
-               
-
-                // if(strcmp(name,"/favicon.ico")==0){
-                //     exit(1);
-                // }
-
                 if ((f = open("send", O_RDONLY)) == -1) {
                         if ((f = open("error", O_RDONLY)) == -1){
                             perror("open: ");
@@ -426,24 +363,16 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 char* try;
                 try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
                 sval=send(msgsock,try,strlen(try),0);
-                dprintf(1,"send_to_sender[%d]",sval);
+                // dprintf(1,"send_to_sender[%d]",sval);
+                int status = 2;
+                write(wfd,&status,sizeof(int));
                 }
                 
             }
-
-
-                dprintf(1,"send_to_rec[%d]",sval);
-                int fd;
-                if((fd=open("/tmp/fifo001", O_RDWR)) == - 1)  {
-                    perror("open fifo");
-                    exit(0);
-                }
-                write(fd,name,strlen(name));
             
       }
 //    } while ((rval > 0) && (strncmp(ibuf,GET,3)));
-
-
+    close(wfd);
     printf("session DIEEEEEEEEEE \n");
    exit(0);
 }
@@ -490,32 +419,21 @@ int main(int argc, char *argv[]) {
    printf("Socket port %d\n", ntohs(server.sin_port));
 
    listen(sock, 5);
-   pid_t cpid;
+    pid_t cpid;
 
 
     int arr[] ={11,12,13,14,15,16,17,18,19,20,21,22,23,24};
     int counter = 0;
     char *names[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
-    char mat_inc[14][14] = {0};
+    int mat_inc[14][14] = {0};
     struct info arr_info[14];
+    int pipe_fd[14][2];
    
     int fd;
     int rd;
-    char buf_fifo[80];
-  unlink("/tmp/fifo001");
-  if((mknod("/tmp/fifo001", S_IFIFO|0777,0)) == -1)  {
-    perror("make fifo");
-    exit(0);
-  }
-  if((fd=open("/tmp/fifo001", O_RDWR)) == - 1)  {
-    perror("fifo");
-    exit(0);
-  }
-  bzero(buf_fifo,80);
+    int buf_pipe[500];
+    memset(buf_pipe,0,sizeof(buf_pipe));
 
-
-  
-  if(rd == -1) perror("fifo");
    do {
       if ((msgsock = accept(sock,(struct sockaddr *) NULL,(socklen_t *) NULL)) == -1) 
          perror("accept");
@@ -553,15 +471,17 @@ int main(int argc, char *argv[]) {
             dprintf(1,"name[%s]\n",name);
          }
 
+        
         for(i = 0 ; i < counter ; i++){
             dprintf(1,"%s ",names[i]);
             if(strcmp(names[i],name)==0){
                 dup2(msgsock, arr[i]);
                 close(msgsock);
                 cpid = fork();
+                // pipe(pipe_fd[i]);
                 if(cpid == 0){
                     dprintf(1,"%d start SESSION\n",arr[i]);
-                    session(arr[i],arr,counter,names,ibuf,name,arr_info);
+                    session(arr[i],arr,counter,names,ibuf,name,arr_info,pipe_fd[i][1],mat_inc);
                 }
                 break;
             }
@@ -571,33 +491,59 @@ int main(int argc, char *argv[]) {
             dup2(msgsock, arr[counter]);
             close(msgsock);
             dprintf(1,"msgsock = %d \n",arr[counter]);
+            pipe(pipe_fd[counter]);
             cpid = fork();
             if(cpid == 0){
-                session(arr[counter],arr,counter,names,ibuf,name,arr_info);
+                close(pipe_fd[counter][0]);
+                session(arr[counter],arr,counter,names,ibuf,name,arr_info,pipe_fd[counter][1],mat_inc);
             }
         }
 
-
-        if((rd=read(fd, &buf_fifo, sizeof(buf_fifo))) > -1 && strcmp(buf_fifo,"/favicon.ico")){
-            dprintf(1,"Data[%d]: ",rd);
-            dprintf(1,"%s \n",buf_fifo);
-
-            int i;
-            int flag = 0;
-            dprintf(1,"%d ",counter);
-            for(i = 0 ; i < counter ; i++){
-                dprintf(1,"%s ",names[i]);
-                if(strcmp(names[i],buf_fifo)==0){flag=1;dprintf(1,"%s %s\n",names[i],buf_fifo);}
+        int flag = 0;
+        for(int j = 0 ; j < counter ; j++){
+            dprintf(1,"%s ",names[i]);
+            if(strcmp(names[j],name)==0){flag=1;dprintf(1,"%s %s\n",names[j],name);}
+        }
+        if(!flag){
+            names[counter] = malloc(strlen(name)+1);
+            strcpy(names[counter],name);
+            counter++;
+        }
+        waitpid(cpid,NULL,0);
+        int r = read(pipe_fd[i][0],&buf_pipe[0],sizeof(int));
+        dprintf(1,"r = %d buf_pipe[0] = %d " , r , buf_pipe[0]);
+        if(r != -1 && buf_pipe[0]==3){
+            for(int j = 1 ; j < 102 ; j++){
+                r = read(pipe_fd[i][0],&buf_pipe[j],sizeof(int));
+                dprintf(1,"r%d ",r);
             }
-            if(!flag){
-                names[counter] = malloc(strlen(buf_fifo)+1);
-                strcpy(names[counter],buf_fifo);
-                counter++;
+            dprintf(1," end reading ");
+            for(int j = 0 ; j < 102 ; j++){
+                dprintf(1,"%d ",buf_pipe[j]);
             }
-         }
-           } 
-    bzero(buf_fifo,80);
+            for(int j = 1 ; j < 51 ; j++){
+                arr_info[i].myShips_info[(j-1)/5][(j-1)%5] = buf_pipe[j];
+            }
+            int another = buf_pipe[51];
+            for(int j = 52 ; j < 102 ; j++){
+                arr_info[another].myShips_info[(j-52)/5][(j-52)%5] = buf_pipe[j];
+            }
+            for(int j = 0 ; j < 10 ; j++)feel_one(arr_info[i].myShips , j , arr_info[i].myShips_info);
+            for(int j = 0 ; j < 10 ; j++)feel_one(arr_info[another].myShips , j , arr_info[another].myShips_info);
+            memset(arr_info[i].myShots,0,sizeof(arr_info[i].myShots));
+            memset(arr_info[another].myShots,0,sizeof(arr_info[another].myShots));
+            print_matrix(arr_info[i].myShips);
+            print_matrix(arr_info[i].myShots);
+            print_matrix(arr_info[another].myShips);
+            print_matrix(arr_info[another].myShots);
+            mat_inc[i][another]=1;
+            mat_inc[another][i]=1;
+        }
+        
+
+        } 
+    memset(buf_pipe,0,sizeof(buf_pipe));
    } while(strcmp(ibuf,FIN));
-   
+
    exit(0);
 }
