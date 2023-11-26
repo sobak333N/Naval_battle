@@ -6,6 +6,8 @@
 
 
 #define START_UNIX_SOCK_PATH "/tmp/unix_start1.server"
+#define HANDLER_MOVE_UNIX_SOCK_PATH1 "/tmp/unix_handler_move1.server"
+#define HANDLER_MOVE_UNIX_SOCK_PATH2 "/tmp/unix_handler_move2.server"
 
 #define SERVER_PATH "/tmp/unix_chat.server"
 #define CLIENT_PATH "unix_sock.client"
@@ -28,6 +30,7 @@ struct info{
     int myShips[10][10];
     int myShots[10][10];
     int myShips_info[10][5];
+    int myTurn;
 };
 
 void generate_shots(int shots[10][10]){
@@ -113,7 +116,19 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
             }
 
             if(c == counter){
-                // no such user
+                if ((f = open("nouser", O_RDONLY)) == -1) {
+                    if ((f = open("error", O_RDONLY)) == -1){
+                        perror("open: ");
+                        exit(errno);
+                    }
+                }
+                fstat(f , &filestat);
+                int size = filestat.st_size;
+                char* try;
+                try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
+                sval=send(msgsock,try,strlen(try),0);
+                int status = 2;
+                write(wfd,&status,sizeof(int));
             }
             else{
                 if(strcmp(mes,"start")==0){
@@ -288,7 +303,235 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 }
                 // HANDLING MOVE
                 else if(strlen(mes) == 3 && mes[0]=='m' && mes[1]>=48 && mes[2]>=48 && mes[1]<=57 && mes[1]<=57){
+                    int end = 0;
+                    int kill = 0;
+                    int flag1 = 0 , flag2 = 0, flag3 = 0;
+                    if(mat_inc[c][c2]==0){
+                        flag1 = 1;
+                        //u not play with this player
+                        // errexit
+                    }
+                    if(!flag1 && arr_info[c2].myShots[mes[1]-48][mes[2]-48] > 0){
+                        flag2 = 1;
+                        // u allready shoot in this point
+                        // errexit
+                    }
+                    if(!flag1 && !flag2 && arr_info[c2].myTurn == 0){
+                        flag3 = 1;
+                        // not ur turn !
+                        //errexit
+                    }
+                    int i=-1;
+                    if(!(flag1+flag2+flag3) && arr_info[c].myShips[mes[1]-48][mes[2]-48] == 1){
+                        arr_info[c2].myShots[mes[1]-48][mes[2]-48] = 3;
+                        arr_info[c].myShips[mes[1]-48][mes[2]-48] = 3;
+                        for(i = 0 ; i < 10 ; i++){
+                            if(arr_info[c].myShips_info[i][0]){
+                                if(mes[2]-48==arr_info[c].myShips_info[i][1] && mes[1]-48 >= arr_info[c].myShips_info[i][2] && mes[1]-48 <= arr_info[c].myShips_info[i][3]){
+                                    arr_info[c].myShips_info[i][4]--;
+                                    if(arr_info[c].myShips_info[i][4] == 0){
+                                        arr_info[c].left--;
+                                        kill =1;
+                                    }
+                                    if(arr_info[c].left==0)end = 1;
+                                    break;
+                                }
+                            }
+                            else{
+                                if(mes[1]-48==arr_info[c].myShips_info[i][1] && mes[2]-48 >= arr_info[c].myShips_info[i][2] && mes[2]-48 <= arr_info[c].myShips_info[i][3]){
+                                    arr_info[c].myShips_info[i][4]--;
+                                    if(arr_info[c].myShips_info[i][4] == 0){
+                                        arr_info[c].left--;
+                                        kill =1;
+                                    }
+                                    if(arr_info[c].left==0)end = 1;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                    }
+                    if(!(flag1+flag2+flag3) && arr_info[c].myShips[mes[1]-48][mes[2]-48] == 0){
+                        arr_info[c2].myShots[mes[1]-48][mes[2]-48] = 2;
+                        arr_info[c].myShips[mes[1]-48][mes[2]-48] = 2;
+                    }
 
+                    static char *newargv[] = {NULL, NULL, NULL};
+                    static char *newenviron[] = {NULL};
+                    static char *cmd = "/usr/bin/python3";
+                    pid_t pid;
+                    int rc;
+                    newargv[0] = "python3";
+                    newargv[1] = "handler_move.py";
+
+                    if(!(flag1+flag2+flag3)){
+                        memset(obuf,0,BUF);
+                        if((pid = fork() ) == -1){perror("fork");exit(1);}
+                        int status_child;
+                        if(pid == 0){
+                            if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
+                            exit(0);
+                        }
+                        int client_sock, len;
+                        struct sockaddr_un server_sockaddr; 
+                        struct sockaddr_un client_sockaddr; 
+                        char buf[BUF_UNIX];
+                        size_t bs=BUF_UNIX;
+                        char cpath[16];
+
+                    
+                        len = sizeof(client_sockaddr);
+                        memset(&server_sockaddr, 0, sizeof(struct sockaddr_un));
+                        memset(&client_sockaddr, 0, sizeof(struct sockaddr_un));
+                        
+                        client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+                        if (client_sock == -1) {
+                            perror("socket");
+                            exit(1);
+                        }
+
+
+                        client_sockaddr.sun_family = AF_UNIX;   
+                        strcpy(client_sockaddr.sun_path, cpath); 
+                        
+                        unlink(cpath);
+                        rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
+                        if (rc == -1){
+                            perror("bind");
+                            close(client_sock);
+                            exit(1);
+                        }
+                            
+                        server_sockaddr.sun_family = AF_UNIX;
+                        strcpy(server_sockaddr.sun_path, HANDLER_MOVE_UNIX_SOCK_PATH1);
+                        rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
+                        
+                        while(rc == -1){
+                            rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
+                        }
+                        
+                        rc = send(client_sock, name, strlen(name), 0);
+                        rc = send(client_sock, " ", 1, 0);
+                        for(int i = 0 ; i < 10 ; i++){
+                            for(int j = 0 ; j < 10 ; j++){
+                                if(arr_info[c].myShips[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
+                                else if(arr_info[c].myShips[i][j]==1)rc = send(client_sock, "1" , 1 , 0);
+                                else if(arr_info[c].myShips[i][j]==2)rc = send(client_sock, "2" , 1 , 0);
+                                else if(arr_info[c].myShips[i][j]==3)rc = send(client_sock, "3" , 1 , 0);
+                            }
+                            for(int j = 0 ; j < 10 ; j++){
+                                if(arr_info[c].myShots[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
+                                else if(arr_info[c].myShots[i][j]==2)rc = send(client_sock, "2" , 1 , 0);
+                                else if(arr_info[c].myShots[i][j]==3)rc = send(client_sock, "3" , 1 , 0);
+                            }
+                        }
+                        if(end)rc = send(client_sock, "L" , 1 , 0);
+                        rc = send(client_sock, "F" , 1 , 0);
+                        rc = recv(client_sock, obuf, BUF,0);
+                        sval=send(arr[c],obuf,strlen(obuf),0);
+                        close(client_sock);
+                    }
+                    memset(obuf,0,BUF);
+                    int client_sock2, len2,status_child;
+                    struct sockaddr_un server_sockaddr2; 
+                    struct sockaddr_un client_sockaddr2; 
+                    char buf2[BUF_UNIX];
+                    size_t bs2=BUF_UNIX;
+                    char cpath2[16];
+                    newargv[0] = "python3";
+                    newargv[1] = "handler_move2.py";
+
+
+                    if((pid = fork() ) == -1){perror("fork");exit(1);}
+                    if(pid == 0){
+                        if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
+                    }
+                    len2 = sizeof(client_sockaddr2);
+                    memset(&server_sockaddr2, 0, sizeof(struct sockaddr_un));
+                    memset(&client_sockaddr2, 0, sizeof(struct sockaddr_un));
+                    
+                    client_sock2 = socket(AF_UNIX, SOCK_STREAM, 0);
+                    if (client_sock2 == -1) {
+                        perror("socket");
+                        exit(1);
+                    }
+
+
+                    client_sockaddr2.sun_family = AF_UNIX;   
+                    strcpy(client_sockaddr2.sun_path, cpath2); 
+                    
+                    unlink(cpath2);
+                    rc = bind(client_sock2, (struct sockaddr *) &client_sockaddr2, len2);
+                    if (rc == -1){
+                        perror("bind");
+                        close(client_sock2);
+                        exit(1);
+                    }
+                        
+                    server_sockaddr2.sun_family = AF_UNIX;
+                    strcpy(server_sockaddr2.sun_path, HANDLER_MOVE_UNIX_SOCK_PATH2);
+                    rc = connect(client_sock2, (struct sockaddr *) &server_sockaddr2, len2);
+                    
+                    while(rc == -1){
+                        rc = connect(client_sock2, (struct sockaddr *) &server_sockaddr2, len2);
+                    }
+
+                    rc = send(client_sock2, rec, strlen(rec), 0);
+                    rc = send(client_sock2, " ", 1, 0);
+                    for(int i = 0 ; i < 10 ; i++){
+                        for(int j = 0 ; j < 10 ; j++){
+                            if(arr_info[c2].myShips[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
+                            else if(arr_info[c2].myShips[i][j]==1)rc = send(client_sock2, "1" , 1 , 0);
+                            else if(arr_info[c2].myShips[i][j]==2)rc = send(client_sock2, "2" , 1 , 0);
+                            else if(arr_info[c2].myShips[i][j]==3)rc = send(client_sock2, "3" , 1 , 0);
+                        }
+                        for(int j = 0 ; j < 10 ; j++){
+                            if(arr_info[c2].myShots[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
+                            else if(arr_info[c2].myShots[i][j]==2)rc = send(client_sock2, "2" , 1 , 0);
+                            else if(arr_info[c2].myShots[i][j]==3)rc = send(client_sock2, "3" , 1 , 0);
+                        }
+                    }
+                    if(flag1)rc = send(client_sock2, "A" , 1 , 0);
+                    if(flag2)rc = send(client_sock2, "B" , 1 , 0);
+                    if(flag3)rc = send(client_sock2, "C" , 1 , 0);
+                    if(kill)rc = send(client_sock2, "K" , 1 , 0);
+                    if(end)rc = send(client_sock2, "E" , 1 , 0);
+                    rc = send(client_sock2, "F" , 1 , 0);
+                    rc = recv(client_sock2, obuf, BUF,0);
+                    close(client_sock2);
+                    dprintf(1,"%s",obuf);
+
+                    if ((f = open("send", O_RDONLY)) == -1) {
+                        if ((f = open("error", O_RDONLY)) == -1){
+                            perror("open: ");
+                            exit(errno);
+                        }
+                    }
+                    fstat(f , &filestat);
+                    int size = filestat.st_size;
+                    char* try;
+                    try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
+
+                    sval=send(msgsock,try,strlen(try),0);
+                    sval=send(msgsock,obuf,strlen(obuf),0);
+                    int w;
+                    int status;
+                    if(!(flag1+flag2+flag3)){
+                        status = 1;
+                        int x = mes[1]-48;
+                        int y = mes[2]-48;
+                        w = write(wfd,&status,sizeof(int));
+                        w = write(wfd,&c,sizeof(int));
+                        w = write(wfd,&x,sizeof(int));
+                        w = write(wfd,&y,sizeof(int));
+                        w = write(wfd,&i,sizeof(int));
+                        int k = kill==0 ? 0 : 1;
+                        w = write(wfd,&k,sizeof(int)); 
+                    }
+                    else{
+                        status = 2;
+                        w = write(wfd,&status,sizeof(int));
+                    }
                 }
                 // JUST MESSAGES
                 else{
@@ -538,8 +781,33 @@ int main(int argc, char *argv[]) {
             print_matrix(arr_info[another].myShots);
             mat_inc[i][another]=1;
             mat_inc[another][i]=1;
+            arr_info[another].myTurn=1;
+            arr_info[i].myTurn=0;
+            arr_info[another].left = 10;
+            arr_info[i].left = 10;
         }
-        
+        if(r!=-1 && buf_pipe[0]==1){
+            for(int j = 1 ; j < 6 ; j++){
+                r = read(pipe_fd[i][0],&buf_pipe[j],sizeof(int));
+            }
+            int another = buf_pipe[1];
+            int x = buf_pipe[2];
+            int y = buf_pipe[3];
+            int sh  = buf_pipe[4];
+            int k = buf_pipe[5];
+            if(k == 1)arr_info[another].left--;
+            if(sh != -1){
+                arr_info[another].myShips_info[sh][4]--;
+                arr_info[another].myShips[x][y] = 3;
+                arr_info[i].myShots[x][y] = 3;
+            }
+            else{
+                arr_info[another].myShips[x][y] = 2;
+                arr_info[i].myShots[x][y] = 2;
+            }
+            arr_info[i].myTurn=0;
+            arr_info[another].myTurn=1;
+        }
 
         } 
     memset(buf_pipe,0,sizeof(buf_pipe));

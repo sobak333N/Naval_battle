@@ -1,0 +1,28 @@
+
+HTTP/1.1 200 OK
+Content-Type: text/html;charset=utf-8
+<html>
+<head>
+</head>
+<body>
+Хелло фром сервер!
+<br>
+first page!
+
+<form name="form1" action="" method="post">
+<div>
+<label for="rec">RECIEVER</label>
+<input name="rec" id="login" value="Hi" />
+</div>
+<div>
+<label for="mes">MESSAGE</label>
+<input name="mes" id="reg" value="Mom" />
+</div>
+<div>
+<button>Send my greetings</button>
+</div>
+</form>
+<a>NO SUCH USER!!!</a>
+</body>
+</html>
+

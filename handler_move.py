@@ -3,10 +3,10 @@ import os
 
 print('I STARTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT')
 
-
-socket_path = '/tmp/unix_start1.server'
+nums = {'1','2','3','0'}
+socket_path = '/tmp/unix_handler_move1.server'
 try:
-    print('start1 ' , socket_path)
+    print('handling move1 ' , socket_path)
     os.unlink(socket_path)
 except OSError:
     if os.path.exists(socket_path):
@@ -28,10 +28,11 @@ try:
     # if not data:
         # break
         text += data.decode()
-        
+    
+    # if text[-2] not in nums: 
     print('Received data:',text)
     answer = '''<html>
-<head><title>GAME STARTED!</title></head>
+<head><title>MOVE!</title></head>
 <body>\n'''
     # left = 0 
     # right = 0
@@ -40,11 +41,29 @@ try:
     while text[right]!=' ':
         right+=1
 
-    answer+= '<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">'
-    answer+= 'YOU PLAY WITH '
-    answer+= text[left:right]
-    answer+= '</a>\n'
-    answer+='<br>'
+    if(text[-2] != 'A'):
+        answer+= '<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">'
+        answer+= 'YOU PLAY WITH '
+        answer+= text[left:right]
+        answer+= '</a>\n'
+        answer+='<br>'
+    if text[-2] == 'A':
+        answer+='<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">YOU ARE NOT PLAYING WITH'
+        answer+=text[left:right]
+        answer+= '</a>'
+        answer+='<br>'
+    if text[-2] == 'B':
+        answer+='<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">YOU HAVE ALLREADY SHOT IN THIS POINT</a><br>'
+    if text[-2] == 'C':
+        answer+='<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">IT IS NOT UR TURN TO MOVE ! WAIT FOR MOVE FROM YOUR OPPONENT</a><br>'
+    if text[-2] == 'K':
+        answer+='<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">YOU KILL ENEMYS SHIP</a><br>'
+    if text[-2] == 'E':
+        answer+='<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">U HAVE KILLED ALL EMEMYS SHIPS !</a><br>'
+        answer+='<a>U WON!</a><br>'
+    if text[-2] == 'L':
+        answer+='<a>ALL YOUR SHIPS WERE KILLED !</a><br>'
+        answer+='<a>U LOST!</a><br>'
     i = 0
     count = 0
     cur = right+1
@@ -57,6 +76,10 @@ try:
                 answer+='_'
             elif text[cur] == '1':
                 answer+='#'
+            elif text[cur] == '2':
+                answer+='-'
+            elif text[cur] == '3':
+                answer+='*'
             cur+=1
             count+=1
         answer+='|||'
@@ -66,6 +89,10 @@ try:
                 answer+='_'
             elif text[cur] == '1':
                 answer+='#'
+            elif text[cur] == '2':
+                answer+='-'
+            elif text[cur] == '3':
+                answer+='*'
             cur+=1
             count+=1
         
