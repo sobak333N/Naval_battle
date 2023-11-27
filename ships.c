@@ -1,4 +1,3 @@
-
 #define errExit(msg)    do { perror(msg); _exit(EXIT_FAILURE); } while (0)
 
 #define BUF 2048
@@ -8,6 +7,7 @@
 #define START_UNIX_SOCK_PATH "/tmp/unix_start1.server"
 #define HANDLER_MOVE_UNIX_SOCK_PATH1 "/tmp/unix_handler_move1.server"
 #define HANDLER_MOVE_UNIX_SOCK_PATH2 "/tmp/unix_handler_move2.server"
+#define ERROR_START__UNIX_SOCK_PATH1 "/tmp/unix_error1.server"
 
 #define SERVER_PATH "/tmp/unix_chat.server"
 #define CLIENT_PATH "unix_sock.client"
@@ -21,8 +21,6 @@ void child_handler(int sig) {
     pid_t pid;
     while((pid = waitpid(-1, NULL, WNOHANG)) > 0);
 }
-
-// int newsession()
 
 struct info{
     int inGame;
@@ -132,6 +130,100 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
             }
             else{
                 if(strcmp(mes,"start")==0){
+                    int flag1 = 0, flag2 = 0,flag3 = 0,flag4 = 0;
+                    if(mat_inc[c][c2]){
+                        // u allready play with this player
+                        flag1 = 1;
+                    }
+                    if(!flag1 && arr_info[c].inGame){
+                        flag2 = 1;
+                        // this player is allready in game with another player . wait for their end
+                    }
+                    if(!(flag1+flag2) && arr_info[c2].inGame){
+                        flag3 = 1;
+                        // u are allready in game with another player
+                    }
+                    if(!(flag1+flag2+flag3) && c == c2){
+                        flag4 = 1;
+                    }
+                    if(flag1 || flag2 || flag3 || flag4){
+                        static char *newargv[] = {NULL, NULL, NULL};
+                        static char *newenviron[] = {NULL};
+                        static char *cmd = "/usr/bin/python3";
+                        pid_t pid;
+
+                        newargv[0] = "python3";
+                        newargv[1] = "error_hadler.py";
+
+                        if((pid = fork() ) == -1){perror("fork");exit(1);}
+                        int status_child;
+                        if(pid == 0){
+                            if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
+                            exit(0);
+                        }
+                        int client_sock, rc, len;
+                        struct sockaddr_un server_sockaddr; 
+                        struct sockaddr_un client_sockaddr; 
+                        char buf[BUF_UNIX];
+                        size_t bs=BUF_UNIX;
+                        char cpath[16];
+
+                    
+                        len = sizeof(client_sockaddr);
+                        memset(&server_sockaddr, 0, sizeof(struct sockaddr_un));
+                        memset(&client_sockaddr, 0, sizeof(struct sockaddr_un));
+                        
+                        client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+                        if (client_sock == -1) {
+                            perror("socket");
+                            exit(1);
+                        }
+
+
+                        client_sockaddr.sun_family = AF_UNIX;   
+                        strcpy(client_sockaddr.sun_path, cpath); 
+                        
+                        unlink(cpath);
+                        rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
+                        if (rc == -1){
+                            perror("bind");
+                            close(client_sock);
+                            exit(1);
+                        }
+                            
+                        server_sockaddr.sun_family = AF_UNIX;
+                        strcpy(server_sockaddr.sun_path, ERROR_START__UNIX_SOCK_PATH1);
+                        rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
+                        
+                        while(rc == -1){
+                            rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
+                        }
+                        
+                        if(flag1)rc = send(client_sock, "A", 1, 0);
+                        if(flag2)rc = send(client_sock, "B", 1, 0);
+                        if(flag3)rc = send(client_sock, "C", 1, 0);
+                        if(flag4)rc = send(client_sock, "D", 1, 0);
+                        rc = send(client_sock, "F", 1, 0);
+                        memset(obuf,0,BUF);
+                        rc = recv(client_sock, obuf, BUF,0);
+                        if ((f = open("welcome", O_RDONLY)) == -1) {
+                            if ((f = open("error", O_RDONLY)) == -1){
+                                perror("open: ");
+                                exit(errno);
+                            }
+                        }
+                        fstat(f , &filestat);
+                        int size = filestat.st_size;
+                        char* try;
+                        try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
+                        sval=send(msgsock,try,strlen(try),0);
+                        sval=send(msgsock,obuf,strlen(obuf),0);
+                        int status =2;
+                        write(wfd,&status,sizeof(int));
+                        close(client_sock);
+                        close(wfd);
+                        exit(0);
+                    }
                     gen_field(arr_info[c].myShips,arr_info[c].myShips_info,0);
                     generate_shots(arr_info[c].myShots);
                     print_matrix(arr_info[c].myShips);
@@ -516,7 +608,12 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     sval=send(msgsock,obuf,strlen(obuf),0);
                     int w;
                     int status;
-                    if(!(flag1+flag2+flag3)){
+                    if(end){
+                        status = 4;
+                        w = write(wfd,&status,sizeof(int));
+                        w = write(wfd,&c,sizeof(int));
+                    }
+                    else if(!(flag1+flag2+flag3)){
                         status = 1;
                         int x = mes[1]-48;
                         int y = mes[2]-48;
@@ -785,6 +882,8 @@ int main(int argc, char *argv[]) {
             arr_info[i].myTurn=0;
             arr_info[another].left = 10;
             arr_info[i].left = 10;
+            arr_info[i].inGame = 1;
+            arr_info[another].inGame = 1;
         }
         if(r!=-1 && buf_pipe[0]==1){
             for(int j = 1 ; j < 6 ; j++){
@@ -808,6 +907,29 @@ int main(int argc, char *argv[]) {
             arr_info[i].myTurn=0;
             arr_info[another].myTurn=1;
         }
+        if(r!=-1 && buf_pipe[0]==4){
+            r = read(pipe_fd[i][0],&buf_pipe[1],sizeof(int));
+            int another = buf_pipe[1];
+
+            memset(arr_info[i].myShips , 0 , sizeof(arr_info[i].myShips));
+            memset(arr_info[another].myShips , 0 , sizeof(arr_info[another].myShips));
+            memset(arr_info[i].myShots , 0 , sizeof(arr_info[i].myShots));
+            memset(arr_info[another].myShots , 0 , sizeof(arr_info[another].myShots));
+            memset(arr_info[i].myShips_info , 0 , sizeof(arr_info[i].myShips_info));
+            memset(arr_info[another].myShips_info , 0 , sizeof(arr_info[another].myShips_info));
+
+            
+            mat_inc[i][another]=0;
+            mat_inc[another][i]=0;
+            arr_info[another].myTurn=0;
+            arr_info[i].myTurn=0;
+            arr_info[another].left = 0;
+            arr_info[i].left = 0;
+            arr_info[i].inGame = 0;
+            arr_info[another].inGame = 0;
+            
+        }
+
 
         } 
     memset(buf_pipe,0,sizeof(buf_pipe));

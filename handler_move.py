@@ -3,7 +3,7 @@ import os
 
 print('I STARTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT')
 
-nums = {'1','2','3','0'}
+
 socket_path = '/tmp/unix_handler_move1.server'
 try:
     print('handling move1 ' , socket_path)
