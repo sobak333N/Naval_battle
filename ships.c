@@ -819,9 +819,9 @@ int main(int argc, char *argv[]) {
                 close(msgsock);
                 cpid = fork();
                 // pipe(pipe_fd[i]);
+                dprintf(1,"%d start SESSION\n",arr[i]);
                 if(cpid == 0){
-                    dprintf(1,"%d start SESSION\n",arr[i]);
-                    session(arr[i],arr,counter,names,ibuf,name,arr_info,pipe_fd[i][1],mat_inc);
+                    session(arr[i],arr,counter,names,ibuf,name,arr_info,101+i*2,mat_inc);
                 }
                 break;
             }
@@ -832,10 +832,14 @@ int main(int argc, char *argv[]) {
             close(msgsock);
             dprintf(1,"msgsock = %d \n",arr[counter]);
             pipe(pipe_fd[counter]);
+            dup2(pipe_fd[counter][0],100+counter*2);
+            dup2(pipe_fd[counter][1],101+counter*2);
+            close(pipe_fd[counter][0]);
+            close(pipe_fd[counter][1]);
             cpid = fork();
             if(cpid == 0){
-                close(pipe_fd[counter][0]);
-                session(arr[counter],arr,counter,names,ibuf,name,arr_info,pipe_fd[counter][1],mat_inc);
+                // close(pipe_fd[counter][0]);
+                session(arr[counter],arr,counter,names,ibuf,name,arr_info,101+counter*2,mat_inc);
             }
         }
 
@@ -850,11 +854,11 @@ int main(int argc, char *argv[]) {
             counter++;
         }
         waitpid(cpid,NULL,0);
-        int r = read(pipe_fd[i][0],&buf_pipe[0],sizeof(int));
+        int r = read(100+i*2,&buf_pipe[0],sizeof(int));
         dprintf(1,"r = %d buf_pipe[0] = %d " , r , buf_pipe[0]);
         if(r != -1 && buf_pipe[0]==3){
             for(int j = 1 ; j < 102 ; j++){
-                r = read(pipe_fd[i][0],&buf_pipe[j],sizeof(int));
+                r = read(100+i*2,&buf_pipe[j],sizeof(int));
                 dprintf(1,"r%d ",r);
             }
             dprintf(1," end reading ");
@@ -887,7 +891,7 @@ int main(int argc, char *argv[]) {
         }
         if(r!=-1 && buf_pipe[0]==1){
             for(int j = 1 ; j < 6 ; j++){
-                r = read(pipe_fd[i][0],&buf_pipe[j],sizeof(int));
+                r = read(100+i*2,&buf_pipe[j],sizeof(int));
             }
             int another = buf_pipe[1];
             int x = buf_pipe[2];
@@ -908,7 +912,7 @@ int main(int argc, char *argv[]) {
             arr_info[another].myTurn=1;
         }
         if(r!=-1 && buf_pipe[0]==4){
-            r = read(pipe_fd[i][0],&buf_pipe[1],sizeof(int));
+            r = read(100+i*2,&buf_pipe[1],sizeof(int));
             int another = buf_pipe[1];
 
             memset(arr_info[i].myShips , 0 , sizeof(arr_info[i].myShips));
