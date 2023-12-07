@@ -130,23 +130,23 @@ void gen_field(int field[10][10],int ships[10][5],int t){
 }
 
 
-void tmp_user(struct user_info user, int offset , int* bd){
-    user.inGame = bd[offset*PERSON_INFO_SIZE];
-    user.op = bd[offset*PERSON_INFO_SIZE+1];
-    user.myTurn = bd[offset*PERSON_INFO_SIZE+2];
-    user.left = bd[offset*PERSON_INFO_SIZE+3];
+void tmp_user(struct user_info* user, int offset , int* bd){
+    user->inGame = bd[offset*PERSON_INFO_SIZE];
+    user->op = bd[offset*PERSON_INFO_SIZE+1];
+    user->myTurn = bd[offset*PERSON_INFO_SIZE+2];
+    user->left = bd[offset*PERSON_INFO_SIZE+3];
     for(int i = 0 ; i < 50 ; i++){
-        user.myShips_info[i/5][i%5] = bd[offset*PERSON_INFO_SIZE+4+i];
+        user->myShips_info[i/5][i%5] = bd[offset*PERSON_INFO_SIZE+4+i];
     }
     for(int i = 0 ; i < 100 ; i++){
-        user.myShots[i/10][i%10] = bd[offset*PERSON_INFO_SIZE+54+i];
+        user->myShots[i/10][i%10] = bd[offset*PERSON_INFO_SIZE+54+i];
     }
-    for(int i = 0 ; i < 10 ; i++){
-        feel_one(user.myShips,i,user.myShips_info);
+    for(int i = 0 ; i < 100 ; i++){
+        user->myShips[i/10][i%10] = bd[offset*PERSON_INFO_SIZE+154+i];
     }
-    printf("inGame=%d op=%d myTurn=%d left=%d\n",user.inGame,user.op,user.myTurn,user.left);
-    print_matrix(user.myShips);
-    print_matrix(user.myShots);
+    printf("inGame=%d op=%d myTurn=%d left=%d\n",user->inGame,user->op,user->myTurn,user->left);
+    print_matrix(user->myShips);
+    print_matrix(user->myShots);
 }
 
 

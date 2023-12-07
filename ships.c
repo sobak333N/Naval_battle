@@ -14,7 +14,7 @@ struct info{
 };
 
 
-void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* name,struct info arr_info[], int wfd,int mat_inc[14][14],int fd_bd){
+void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* name,int fd_bd){
 
     dprintf(1,"%d start SESSION\n",msgsock);
     int n;   
@@ -48,8 +48,6 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
         char* try;
         try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
         sval=send(msgsock,try,strlen(try),0);
-        int status = 2;
-        write(wfd,&status,sizeof(int));
         free(try);
     }
       else if(strncmp(ibuf,"POST",4)==0){
@@ -85,8 +83,12 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
 
             struct user_info reciever;
             struct user_info sender;
-            tmp_user(reciever,c,bd);
-            tmp_user(sender,c2,bd);
+            tmp_user(&reciever,c,bd);
+            tmp_user(&sender,c2,bd);
+            print_matrix(reciever.myShips);
+            print_matrix(reciever.myShots);
+            print_matrix(sender.myShips);
+            print_matrix(sender.myShots);
 
             if(c == counter){
                 if ((f = open("nouser", O_RDONLY)) == -1) {
@@ -100,21 +102,19 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 char* try;
                 try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
                 sval=send(msgsock,try,strlen(try),0);
-                int status = 2;
-                write(wfd,&status,sizeof(int));
             }
             else{
                 if(strcmp(mes,"start")==0){
                     int flag1 = 0, flag2 = 0,flag3 = 0,flag4 = 0;
-                    if(mat_inc[c][c2]){
+                    if(reciever.op==c2 && sender.op == c){
                         // u allready play with this player
                         flag1 = 1;
                     }
-                    if(!flag1 && arr_info[c].inGame){
+                    if(!flag1 && reciever.inGame){
                         flag2 = 1;
                         // this player is allready in game with another player . wait for their end
                     }
-                    if(!(flag1+flag2) && arr_info[c2].inGame){
+                    if(!(flag1+flag2) && sender.inGame){
                         flag3 = 1;
                         // u are allready in game with another player
                     }
@@ -193,22 +193,24 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
                         sval=send(msgsock,try,strlen(try),0);
                         sval=send(msgsock,obuf,strlen(obuf),0);
-                        int status =2;
-                        write(wfd,&status,sizeof(int));
                         close(client_sock);
-                        close(wfd);
                         free(try);
                         exit(0);
                     }
-                    gen_field(arr_info[c].myShips,arr_info[c].myShips_info,0);
-                    generate_shots(arr_info[c].myShots);
-                    print_matrix(arr_info[c].myShips);
-                    print_matrix(arr_info[c].myShots);
 
-                    gen_field(arr_info[c2].myShips,arr_info[c2].myShips_info,1);
-                    generate_shots(arr_info[c2].myShots);
-                    print_matrix(arr_info[c2].myShips);
-                    print_matrix(arr_info[c2].myShots);
+                    gen_field(reciever.myShips,reciever.myShips_info,0);
+                    memset(reciever.myShots,0,sizeof(reciever.myShots));
+                    print_matrix(reciever.myShips);
+                    print_matrix(reciever.myShots);
+
+
+                    gen_field(sender.myShips,sender.myShips_info,1);
+                    memset(sender.myShots,0,sizeof(sender.myShots));
+                    print_matrix(sender.myShips);
+                    print_matrix(sender.myShots);
+
+
+
                     static char *newargv[] = {NULL, NULL, NULL};
                     static char *newenviron[] = {NULL};
                     static char *cmd = "/usr/bin/python3";
@@ -265,11 +267,11 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     rc = send(client_sock, " ", 1, 0);
                     for(int i = 0 ; i < 10 ; i++){
                         for(int j = 0 ; j < 10 ; j++){
-                            if(arr_info[c].myShips[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
+                            if(reciever.myShips[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
                             else rc = send(client_sock, "1" , 1 , 0);
                         }
                         for(int j = 0 ; j < 10 ; j++){
-                            if(arr_info[c].myShots[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
+                            if(reciever.myShots[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
                             else rc = send(client_sock, "1" , 1 , 0);
                         }
                     }
@@ -329,11 +331,11 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     rc = send(client_sock2, " ", 1, 0);
                     for(int i = 0 ; i < 10 ; i++){
                         for(int j = 0 ; j < 10 ; j++){
-                            if(arr_info[c2].myShips[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
+                            if(sender.myShips[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
                             else rc = send(client_sock2, "1" , 1 , 0);
                         }
                         for(int j = 0 ; j < 10 ; j++){
-                            if(arr_info[c2].myShots[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
+                            if(sender.myShots[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
                             else rc = send(client_sock2, "1" , 1 , 0);
                         }
                     }
@@ -351,23 +353,41 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     fstat(f , &filestat);
                     int size = filestat.st_size;
                     char* try;
+        
                     try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
                     sval=send(msgsock,try,strlen(try),0);
                     sval=send(msgsock,obuf,strlen(obuf),0);
-                    int w;
-                    int status = 3;
-                    w = write(wfd,&status,sizeof(int));dprintf(1,"w = %d ",w);
-                    for(int i = 0 ; i < 10 ; i++){
-                        for(int j = 0 ; j < 5 ; j++){
-                            w = write(wfd,&arr_info[c2].myShips_info[i][j],sizeof(int));dprintf(1,"w = %d ",w);
-                        }
+
+                    bd[PERSON_INFO_SIZE*c] = 1;
+                    bd[PERSON_INFO_SIZE*c+1] = c2;
+                    bd[PERSON_INFO_SIZE*c+2] = 1;
+                    bd[PERSON_INFO_SIZE*c+3] = 10;
+                    for(int i = 0 ; i < 50 ; i++){
+                        bd[PERSON_INFO_SIZE*c+4+i] = reciever.myShips_info[i/5][i%5];
                     }
-                    w = write(wfd,&c,sizeof(int));dprintf(1,"w = %d ",w);
-                    for(int i = 0 ; i < 10 ; i++){
-                        for(int j = 0 ; j < 5 ; j++){
-                            w = write(wfd,&arr_info[c].myShips_info[i][j],sizeof(int));dprintf(1,"w = %d ",w);
-                        }
+                    for(int i = 0 ; i < 100 ; i++){
+                        bd[PERSON_INFO_SIZE*c+54+i] = reciever.myShots[i/10][i%10];
                     }
+                    for(int i = 0 ; i < 100 ; i++){
+                        bd[PERSON_INFO_SIZE*c+154+i] = reciever.myShips[i/10][i%10];
+                    }
+
+                    bd[PERSON_INFO_SIZE*c2] = 1;
+                    bd[PERSON_INFO_SIZE*c2+1] = c;
+                    bd[PERSON_INFO_SIZE*c2+2] = 0;
+                    bd[PERSON_INFO_SIZE*c2+3] = 10;
+                    for(int i = 0 ; i < 50 ; i++){
+                        bd[PERSON_INFO_SIZE*c2+4+i] = sender.myShips_info[i/5][i%5];
+                    }
+                    for(int i = 0 ; i < 100 ; i++){
+                        bd[PERSON_INFO_SIZE*c2+54+i] = sender.myShots[i/10][i%10];
+                    }
+                    for(int i = 0 ; i < 100 ; i++){
+                        bd[PERSON_INFO_SIZE*c2+154+i] = sender.myShips[i/10][i%10];
+                    }
+                    msync(bd, MAX_USERS*PERSON_INFO_SIZE*sizeof(int), MS_SYNC);
+                    munmap(bd, MAX_USERS*PERSON_INFO_SIZE*sizeof(int));
+
                     free(try);
                 }
                 // HANDLING MOVE
@@ -375,54 +395,54 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     int end = 0;
                     int kill = 0;
                     int flag1 = 0 , flag2 = 0, flag3 = 0;
-                    if(mat_inc[c][c2]==0){
+                    if(reciever.op!=c2 || sender.op!=c){
                         flag1 = 1;
                         //u not play with this player
                         // errexit
                     }
-                    if(!flag1 && arr_info[c2].myShots[mes[1]-48][mes[2]-48] > 0){
+                    if(!flag1 && sender.myShots[mes[1]-48][mes[2]-48] > 0){
                         flag2 = 1;
                         // u allready shoot in this point
                         // errexit
                     }
-                    if(!flag1 && !flag2 && arr_info[c2].myTurn == 0){
+                    if(!flag1 && !flag2 && sender.myTurn == 0){
                         flag3 = 1;
                         // not ur turn !
                         //errexit
                     }
                     int i=-1;
-                    if(!(flag1+flag2+flag3) && arr_info[c].myShips[mes[1]-48][mes[2]-48] == 1){
-                        arr_info[c2].myShots[mes[1]-48][mes[2]-48] = 3;
-                        arr_info[c].myShips[mes[1]-48][mes[2]-48] = 3;
+                    if(!(flag1+flag2+flag3) && reciever.myShips[mes[1]-48][mes[2]-48] == 1){
+                        sender.myShots[mes[1]-48][mes[2]-48] = 3;
+                        reciever.myShips[mes[1]-48][mes[2]-48] = 3;
                         for(i = 0 ; i < 10 ; i++){
-                            if(arr_info[c].myShips_info[i][0]){
-                                if(mes[2]-48==arr_info[c].myShips_info[i][1] && mes[1]-48 >= arr_info[c].myShips_info[i][2] && mes[1]-48 <= arr_info[c].myShips_info[i][3]){
-                                    arr_info[c].myShips_info[i][4]--;
-                                    if(arr_info[c].myShips_info[i][4] == 0){
-                                        arr_info[c].left--;
+                            if(reciever.myShips_info[i][0]){
+                                if(mes[2]-48==reciever.myShips_info[i][1] && mes[1]-48 >= reciever.myShips_info[i][2] && mes[1]-48 <= reciever.myShips_info[i][3]){
+                                    reciever.myShips_info[i][4]--;
+                                    if(reciever.myShips_info[i][4] == 0){
+                                        reciever.left--;
                                         kill =1;
                                     }
-                                    if(arr_info[c].left==0)end = 1;
+                                    if(reciever.left==0)end = 1;
                                     break;
                                 }
                             }
                             else{
-                                if(mes[1]-48==arr_info[c].myShips_info[i][1] && mes[2]-48 >= arr_info[c].myShips_info[i][2] && mes[2]-48 <= arr_info[c].myShips_info[i][3]){
-                                    arr_info[c].myShips_info[i][4]--;
-                                    if(arr_info[c].myShips_info[i][4] == 0){
-                                        arr_info[c].left--;
+                                if(mes[1]-48==reciever.myShips_info[i][1] && mes[2]-48 >= reciever.myShips_info[i][2] && mes[2]-48 <= reciever.myShips_info[i][3]){
+                                    reciever.myShips_info[i][4]--;
+                                    if(reciever.myShips_info[i][4] == 0){
+                                        reciever.left--;
                                         kill =1;
                                     }
-                                    if(arr_info[c].left==0)end = 1;
+                                    if(reciever.left==0)end = 1;
                                     break;
                                 }
                             }
                         }
                         
                     }
-                    if(!(flag1+flag2+flag3) && arr_info[c].myShips[mes[1]-48][mes[2]-48] == 0){
-                        arr_info[c2].myShots[mes[1]-48][mes[2]-48] = 2;
-                        arr_info[c].myShips[mes[1]-48][mes[2]-48] = 2;
+                    if(!(flag1+flag2+flag3) && reciever.myShips[mes[1]-48][mes[2]-48] == 0){
+                        sender.myShots[mes[1]-48][mes[2]-48] = 2;
+                        reciever.myShips[mes[1]-48][mes[2]-48] = 2;
                     }
 
                     static char *newargv[] = {NULL, NULL, NULL};
@@ -483,15 +503,15 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         rc = send(client_sock, " ", 1, 0);
                         for(int i = 0 ; i < 10 ; i++){
                             for(int j = 0 ; j < 10 ; j++){
-                                if(arr_info[c].myShips[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
-                                else if(arr_info[c].myShips[i][j]==1)rc = send(client_sock, "1" , 1 , 0);
-                                else if(arr_info[c].myShips[i][j]==2)rc = send(client_sock, "2" , 1 , 0);
-                                else if(arr_info[c].myShips[i][j]==3)rc = send(client_sock, "3" , 1 , 0);
+                                if(reciever.myShips[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
+                                else if(reciever.myShips[i][j]==1)rc = send(client_sock, "1" , 1 , 0);
+                                else if(reciever.myShips[i][j]==2)rc = send(client_sock, "2" , 1 , 0);
+                                else if(reciever.myShips[i][j]==3)rc = send(client_sock, "3" , 1 , 0);
                             }
                             for(int j = 0 ; j < 10 ; j++){
-                                if(arr_info[c].myShots[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
-                                else if(arr_info[c].myShots[i][j]==2)rc = send(client_sock, "2" , 1 , 0);
-                                else if(arr_info[c].myShots[i][j]==3)rc = send(client_sock, "3" , 1 , 0);
+                                if(reciever.myShots[i][j]==0)rc = send(client_sock, "0" , 1 , 0);
+                                else if(reciever.myShots[i][j]==2)rc = send(client_sock, "2" , 1 , 0);
+                                else if(reciever.myShots[i][j]==3)rc = send(client_sock, "3" , 1 , 0);
                             }
                         }
                         if(end)rc = send(client_sock, "L" , 1 , 0);
@@ -547,17 +567,19 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
 
                     rc = send(client_sock2, rec, strlen(rec), 0);
                     rc = send(client_sock2, " ", 1, 0);
+                    print_matrix(sender.myShips);
+                    print_matrix(sender.myShots);
                     for(int i = 0 ; i < 10 ; i++){
                         for(int j = 0 ; j < 10 ; j++){
-                            if(arr_info[c2].myShips[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
-                            else if(arr_info[c2].myShips[i][j]==1)rc = send(client_sock2, "1" , 1 , 0);
-                            else if(arr_info[c2].myShips[i][j]==2)rc = send(client_sock2, "2" , 1 , 0);
-                            else if(arr_info[c2].myShips[i][j]==3)rc = send(client_sock2, "3" , 1 , 0);
+                            if(sender.myShips[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
+                            else if(sender.myShips[i][j]==1)rc = send(client_sock2, "1" , 1 , 0);
+                            else if(sender.myShips[i][j]==2)rc = send(client_sock2, "2" , 1 , 0);
+                            else if(sender.myShips[i][j]==3)rc = send(client_sock2, "3" , 1 , 0);
                         }
                         for(int j = 0 ; j < 10 ; j++){
-                            if(arr_info[c2].myShots[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
-                            else if(arr_info[c2].myShots[i][j]==2)rc = send(client_sock2, "2" , 1 , 0);
-                            else if(arr_info[c2].myShots[i][j]==3)rc = send(client_sock2, "3" , 1 , 0);
+                            if(sender.myShots[i][j]==0)rc = send(client_sock2, "0" , 1 , 0);
+                            else if(sender.myShots[i][j]==2)rc = send(client_sock2, "2" , 1 , 0);
+                            else if(sender.myShots[i][j]==3)rc = send(client_sock2, "3" , 1 , 0);
                         }
                     }
                     if(flag1)rc = send(client_sock2, "A" , 1 , 0);
@@ -586,26 +608,36 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     int w;
                     int status;
                     if(end){
-                        status = 4;
-                        w = write(wfd,&status,sizeof(int));
-                        w = write(wfd,&c,sizeof(int));
+                        for(int i = 0 ; i < PERSON_INFO_SIZE ; i++)bd[PERSON_INFO_SIZE*c+i]=0;
+                        for(int i = 0 ; i < PERSON_INFO_SIZE ; i++)bd[PERSON_INFO_SIZE*c2+i]=0;
                     }
                     else if(!(flag1+flag2+flag3)){
-                        status = 1;
-                        int x = mes[1]-48;
-                        int y = mes[2]-48;
-                        w = write(wfd,&status,sizeof(int));
-                        w = write(wfd,&c,sizeof(int));
-                        w = write(wfd,&x,sizeof(int));
-                        w = write(wfd,&y,sizeof(int));
-                        w = write(wfd,&i,sizeof(int));
-                        int k = kill==0 ? 0 : 1;
-                        w = write(wfd,&k,sizeof(int)); 
+                        bd[PERSON_INFO_SIZE*c+2] = 1;
+                        if(kill)bd[PERSON_INFO_SIZE*c+3]--;
+                        for(int i = 0 ; i < 50 ; i++){
+                            bd[PERSON_INFO_SIZE*c+4+i] = reciever.myShips_info[i/5][i%5];
+                        }
+                        for(int i = 0 ; i < 100 ; i++){
+                            bd[PERSON_INFO_SIZE*c+54+i] = reciever.myShots[i/10][i%10];
+                        }
+                        for(int i = 0 ; i < 100 ; i++){
+                            bd[PERSON_INFO_SIZE*c+154+i] = reciever.myShips[i/10][i%10];
+                        }
+
+                        bd[PERSON_INFO_SIZE*c2+2] = 0;
+                        for(int i = 0 ; i < 50 ; i++){
+                            bd[PERSON_INFO_SIZE*c2+4+i] = sender.myShips_info[i/5][i%5];
+                        }
+                        for(int i = 0 ; i < 100 ; i++){
+                            bd[PERSON_INFO_SIZE*c2+54+i] = sender.myShots[i/10][i%10];
+                        }
+                        for(int i = 0 ; i < 100 ; i++){
+                            bd[PERSON_INFO_SIZE*c2+154+i] = sender.myShips[i/10][i%10];
+                        }
                     }
-                    else{
-                        status = 2;
-                        w = write(wfd,&status,sizeof(int));
-                    }
+
+                    msync(bd, MAX_USERS*PERSON_INFO_SIZE*sizeof(int), MS_SYNC);
+                    munmap(bd, MAX_USERS*PERSON_INFO_SIZE*sizeof(int));
                     free(try);
                 }
                 // JUST MESSAGES
@@ -683,7 +715,6 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 sval=send(msgsock,try,strlen(try),0);
                 // dprintf(1,"send_to_sender[%d]",sval);
                 int status = 2;
-                write(wfd,&status,sizeof(int));
                 free(try);
                 }
                 
@@ -691,7 +722,6 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
             
       }
 //    } while ((rval > 0) && (strncmp(ibuf,GET,3)));
-    close(wfd);
     free(bd);
     printf("session DIEEEEEEEEEE \n");
     exit(0);
@@ -763,18 +793,9 @@ int main(int argc, char *argv[]) {
     for(int i = 0 ; i < MAX_USERS ; i++)arr[i]=i+OFFSET_FOR_SOCKFD;
     int counter = 0;
     char *names[MAX_USERS] = {NULL};
-    int mat_inc[14][14] = {0};
-    struct info arr_info[14];
-    int pipe_fd[14][2];
-
-    int fd;
-    int rd;
-    int buf_pipe[500];
-    memset(buf_pipe,0,sizeof(buf_pipe));
 
     do {
-        if ((msgsock = accept(sock,(struct sockaddr *) NULL,(socklen_t *) NULL)) == -1) 
-            perror("accept");
+        if ((msgsock = accept(sock,(struct sockaddr *) NULL,(socklen_t *) NULL)) == -1) perror("accept");
         else{
             int i;
             char ibuf[BUF];
@@ -810,132 +831,43 @@ int main(int argc, char *argv[]) {
             }
 
         
-        for(i = 0 ; i < counter ; i++){
-            dprintf(1,"%s ",names[i]);
-            if(strcmp(names[i],name)==0){
-                dup2(msgsock, arr[i]);
-                close(msgsock);
-                cpid = fork();
-                // pipe(pipe_fd[i]);
-                dprintf(1,"%d start SESSION\n",arr[i]);
-                if(cpid == 0){
-                    session(arr[i],arr,counter,names,ibuf,name,arr_info,101+i*2,mat_inc,fd_bd);
+            for(i = 0 ; i < counter ; i++){
+                dprintf(1,"%s ",names[i]);
+                if(strcmp(names[i],name)==0){
+                    dup2(msgsock, arr[i]);
+                    close(msgsock);
+                    cpid = fork();
+                    dprintf(1,"%d start SESSION\n",arr[i]);
+                    if(cpid == 0){
+                        session(arr[i],arr,counter,names,ibuf,name,fd_bd);
+                    }
+                    break;
                 }
-                break;
             }
-        }
-        if(i == counter){
-            dprintf(1,"accept con ");
-            dup2(msgsock, arr[counter]);
-            close(msgsock);
-            dprintf(1,"msgsock = %d \n",arr[counter]);
-            pipe(pipe_fd[counter]);
-            dup2(pipe_fd[counter][0],100+counter*2);
-            dup2(pipe_fd[counter][1],101+counter*2);
-            close(pipe_fd[counter][0]);
-            close(pipe_fd[counter][1]);
-            cpid = fork();
-            if(cpid == 0){
-                // close(pipe_fd[counter][0]);
-                session(arr[counter],arr,counter,names,ibuf,name,arr_info,101+counter*2,mat_inc,fd_bd);
+            if(i == counter){
+                dprintf(1,"accept con ");
+                dup2(msgsock, arr[counter]);
+                close(msgsock);
+                dprintf(1,"msgsock = %d \n",arr[counter]);
+                cpid = fork();
+                if(cpid == 0){
+                    session(arr[counter],arr,counter,names,ibuf,name,fd_bd);
+                }
             }
-        }
 
-        int flag = 0;
-        for(int j = 0 ; j < counter ; j++){
-            dprintf(1,"%s ",names[i]);
-            if(strcmp(names[j],name)==0){flag=1;dprintf(1,"%s %s\n",names[j],name);}
-        }
-        if(!flag){
-            names[counter] = malloc(strlen(name)+1);
-            strcpy(names[counter],name);
-            counter++;
-        }
-        waitpid(cpid,NULL,0);
-        int r = read(100+i*2,&buf_pipe[0],sizeof(int));
-        dprintf(1,"r = %d buf_pipe[0] = %d " , r , buf_pipe[0]);
-        if(r != -1 && buf_pipe[0]==3){
-            for(int j = 1 ; j < 102 ; j++){
-                r = read(100+i*2,&buf_pipe[j],sizeof(int));
-                dprintf(1,"r%d ",r);
+            int flag = 0;
+            for(int j = 0 ; j < counter ; j++){
+                dprintf(1,"%s ",names[i]);
+                if(strcmp(names[j],name)==0){flag=1;dprintf(1,"%s %s\n",names[j],name);}
             }
-            dprintf(1," end reading ");
-            for(int j = 0 ; j < 102 ; j++){
-                dprintf(1,"%d ",buf_pipe[j]);
+            if(!flag){
+                names[counter] = malloc(strlen(name)+1);
+                strcpy(names[counter],name);
+                counter++;
             }
-            for(int j = 1 ; j < 51 ; j++){
-                arr_info[i].myShips_info[(j-1)/5][(j-1)%5] = buf_pipe[j];
-            }
-            int another = buf_pipe[51];
-            for(int j = 52 ; j < 102 ; j++){
-                arr_info[another].myShips_info[(j-52)/5][(j-52)%5] = buf_pipe[j];
-            }
-            for(int j = 0 ; j < 10 ; j++)feel_one(arr_info[i].myShips , j , arr_info[i].myShips_info);
-            for(int j = 0 ; j < 10 ; j++)feel_one(arr_info[another].myShips , j , arr_info[another].myShips_info);
-            memset(arr_info[i].myShots,0,sizeof(arr_info[i].myShots));
-            memset(arr_info[another].myShots,0,sizeof(arr_info[another].myShots));
-            print_matrix(arr_info[i].myShips);
-            print_matrix(arr_info[i].myShots);
-            print_matrix(arr_info[another].myShips);
-            print_matrix(arr_info[another].myShots);
-            mat_inc[i][another]=1;
-            mat_inc[another][i]=1;
-            arr_info[another].myTurn=1;
-            arr_info[i].myTurn=0;
-            arr_info[another].left = 10;
-            arr_info[i].left = 10;
-            arr_info[i].inGame = 1;
-            arr_info[another].inGame = 1;
-        }
-        if(r!=-1 && buf_pipe[0]==1){
-            for(int j = 1 ; j < 6 ; j++){
-                r = read(100+i*2,&buf_pipe[j],sizeof(int));
-            }
-            int another = buf_pipe[1];
-            int x = buf_pipe[2];
-            int y = buf_pipe[3];
-            int sh  = buf_pipe[4];
-            int k = buf_pipe[5];
-            if(k == 1)arr_info[another].left--;
-            if(sh != -1){
-                arr_info[another].myShips_info[sh][4]--;
-                arr_info[another].myShips[x][y] = 3;
-                arr_info[i].myShots[x][y] = 3;
-            }
-            else{
-                arr_info[another].myShips[x][y] = 2;
-                arr_info[i].myShots[x][y] = 2;
-            }
-            arr_info[i].myTurn=0;
-            arr_info[another].myTurn=1;
-        }
-        if(r!=-1 && buf_pipe[0]==4){
-            r = read(100+i*2,&buf_pipe[1],sizeof(int));
-            int another = buf_pipe[1];
-
-            memset(arr_info[i].myShips , 0 , sizeof(arr_info[i].myShips));
-            memset(arr_info[another].myShips , 0 , sizeof(arr_info[another].myShips));
-            memset(arr_info[i].myShots , 0 , sizeof(arr_info[i].myShots));
-            memset(arr_info[another].myShots , 0 , sizeof(arr_info[another].myShots));
-            memset(arr_info[i].myShips_info , 0 , sizeof(arr_info[i].myShips_info));
-            memset(arr_info[another].myShips_info , 0 , sizeof(arr_info[another].myShips_info));
-
-            
-            mat_inc[i][another]=0;
-            mat_inc[another][i]=0;
-            arr_info[another].myTurn=0;
-            arr_info[i].myTurn=0;
-            arr_info[another].left = 0;
-            arr_info[i].left = 0;
-            arr_info[i].inGame = 0;
-            arr_info[another].inGame = 0;
-            
-        }
-
 
         } 
-    memset(buf_pipe,0,sizeof(buf_pipe));
-    } while(strcmp(ibuf,FIN));
+    } while(1);
 
     exit(0);
 }

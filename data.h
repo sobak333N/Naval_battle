@@ -58,14 +58,14 @@ void feel_two_xd(int field[10][10] , int j , int ships[10][5]);
 void rand_pos(int ships[10][5] , int num);
 void feel_one(int field[10][10], int j , int ships[10][5]);
 void gen_field(int field[10][10],int ships[10][5],int t);
-void tmp_user(struct user_info user, int offset , int* bd);
+void tmp_user(struct user_info* user, int offset , int* bd);
 void print_matrix(int mat[10][10]);
 void generate_shots(int shots[10][10]);
 
 #define BUF 2048
 #define BUF_UNIX 100
-#define PERSON_INFO_SIZE 154
-#define MAX_USERS 100
+#define PERSON_INFO_SIZE 254
+#define MAX_USERS 50
 #define OFFSET_FOR_SOCKFD 11
 
 #define START_UNIX_SOCK_PATH "/tmp/unix_start1.server"
