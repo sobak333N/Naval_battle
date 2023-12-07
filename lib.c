@@ -1,4 +1,27 @@
 #include "data.h"
+
+void generate_shots(int shots[10][10]){
+    for(int i = 0 ; i < 10 ; i++){
+        for(int j = 0 ; j < 10 ;j++){
+            shots[i][j]=0;
+        }
+    }
+}
+
+void print_matrix(int mat[10][10]){
+    printf("\n");
+    for(int i = 0 ; i < 10 ; i++){
+        for(int j = 0 ; j < 10 ;j++){
+            // printf("%d ",mat[i][j]);
+            if(mat[i][j]==1)dprintf(1,"#");
+            if(mat[i][j]==0)dprintf(1,"_");
+        }
+        printf("\n");
+    }
+    printf("--------------------------\n");
+}
+
+
 void feel_two_xd(int field[10][10] , int j , int ships[10][5]){
     if(ships[j][1]>0){
         int high = ships[j][3] < 9 ? ships[j][3]+2 : 10 ;
@@ -55,11 +78,13 @@ void rand_pos(int ships[10][5] , int num){
 
 void feel_one(int field[10][10], int j , int ships[10][5]){
     for(int i = ships[j][2] ; i < ships[j][3]+1 ; i++){
-        if(ships[j][0]){
-            field[i][ships[j][1]] = 1;
-        }
-        else{
-            field[ships[j][1]][i] = 1;
+        if(ships[j][4]){
+            if(ships[j][0]){
+                field[i][ships[j][1]] = 1;
+            }
+            else{
+                field[ships[j][1]][i] = 1;
+            }
         }
     }
 }
@@ -104,5 +129,24 @@ void gen_field(int field[10][10],int ships[10][5],int t){
     }
 }
 
+
+void tmp_user(struct user_info user, int offset , int* bd){
+    user.inGame = bd[offset*PERSON_INFO_SIZE];
+    user.op = bd[offset*PERSON_INFO_SIZE+1];
+    user.myTurn = bd[offset*PERSON_INFO_SIZE+2];
+    user.left = bd[offset*PERSON_INFO_SIZE+3];
+    for(int i = 0 ; i < 50 ; i++){
+        user.myShips_info[i/5][i%5] = bd[offset*PERSON_INFO_SIZE+4+i];
+    }
+    for(int i = 0 ; i < 100 ; i++){
+        user.myShots[i/10][i%10] = bd[offset*PERSON_INFO_SIZE+54+i];
+    }
+    for(int i = 0 ; i < 10 ; i++){
+        feel_one(user.myShips,i,user.myShips_info);
+    }
+    printf("inGame=%d op=%d myTurn=%d left=%d\n",user.inGame,user.op,user.myTurn,user.left);
+    print_matrix(user.myShips);
+    print_matrix(user.myShots);
+}
 
 

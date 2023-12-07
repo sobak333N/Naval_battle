@@ -1,22 +1,4 @@
-#define errExit(msg)    do { perror(msg); _exit(EXIT_FAILURE); } while (0)
-
-#define BUF 2048
-#define BUF_UNIX 100
-
-
-#define START_UNIX_SOCK_PATH "/tmp/unix_start1.server"
-#define HANDLER_MOVE_UNIX_SOCK_PATH1 "/tmp/unix_handler_move1.server"
-#define HANDLER_MOVE_UNIX_SOCK_PATH2 "/tmp/unix_handler_move2.server"
-#define ERROR_START__UNIX_SOCK_PATH1 "/tmp/unix_error1.server"
-
-#define SERVER_PATH "/tmp/unix_chat.server"
-#define CLIENT_PATH "unix_sock.client"
-#define FIN "exit"
-#define GET "GET"
-#define DATA "Answer\n"
 #include "data.h"
-
-
 void child_handler(int sig) {
     pid_t pid;
     while((pid = waitpid(-1, NULL, WNOHANG)) > 0);
@@ -31,58 +13,45 @@ struct info{
     int myTurn;
 };
 
-void generate_shots(int shots[10][10]){
-    for(int i = 0 ; i < 10 ; i++){
-        for(int j = 0 ; j < 10 ;j++){
-            shots[i][j]=0;
-        }
-    }
-}
 
-void print_matrix(int mat[10][10]){
-    printf("\n");
-    for(int i = 0 ; i < 10 ; i++){
-        for(int j = 0 ; j < 10 ;j++){
-            // printf("%d ",mat[i][j]);
-            if(mat[i][j]==1)dprintf(1,"#");
-            if(mat[i][j]==0)dprintf(1,"_");
-        }
-        printf("\n");
-    }
-    printf("--------------------------\n");
-}
+void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* name,struct info arr_info[], int wfd,int mat_inc[14][14],int fd_bd){
 
-
-
-void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* name,struct info arr_info[], int wfd,int mat_inc[14][14]){
-
-  dprintf(1,"%d start SESSION\n",msgsock);
+    dprintf(1,"%d start SESSION\n",msgsock);
     int n;   
-   int sock;
-   socklen_t length;
-   struct sockaddr_in server;
-   char obuf[BUF];
-   int rval,sval;
-   const int enable = 1; 
+    int sock;
+    int* bd;
+    socklen_t length;
+    struct sockaddr_in server;
+    char obuf[BUF];
+    int rval,sval;
+    const int enable = 1;
+    if ((bd = (int*)mmap(NULL,MAX_USERS*PERSON_INFO_SIZE*sizeof(int) , PROT_READ|PROT_WRITE, MAP_SHARED, fd_bd, 0)) == (void *)-1) {
+        perror("mmap bd: ");
+        exit(errno);    
+    } 
+    for(int i = 0 ; i < MAX_USERS*PERSON_INFO_SIZE ; i++){
+        printf("%d ",bd[i]);
+    }
 
-      if(strncmp(ibuf,"GET",3)==0){
-         struct stat filestat;
-         int f;
-         int i;
+    if(strncmp(ibuf,"GET",3)==0){
+        struct stat filestat;
+        int f;
+        int i;
         if ((f = open("welcome", O_RDONLY)) == -1) {
-                if ((f = open("error", O_RDONLY)) == -1){
-                    perror("open: ");
-                    exit(errno);
-                }
+            if ((f = open("error", O_RDONLY)) == -1){
+                perror("open: ");
+                exit(errno);
             }
-         fstat(f , &filestat);
-         int size = filestat.st_size;
-         char* try;
-         try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
-         sval=send(msgsock,try,strlen(try),0);
-         int status = 2;
-         write(wfd,&status,sizeof(int));
-      }
+        }
+        fstat(f , &filestat);
+        int size = filestat.st_size;
+        char* try;
+        try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
+        sval=send(msgsock,try,strlen(try),0);
+        int status = 2;
+        write(wfd,&status,sizeof(int));
+        free(try);
+    }
       else if(strncmp(ibuf,"POST",4)==0){
             struct stat filestat;
             int f;
@@ -112,6 +81,12 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
             for(c2 = 0 ; c2 < counter ; c2++){
                 if(strcmp(names[c2],name)==0){break;}
             }
+
+
+            struct user_info reciever;
+            struct user_info sender;
+            tmp_user(reciever,c,bd);
+            tmp_user(sender,c2,bd);
 
             if(c == counter){
                 if ((f = open("nouser", O_RDONLY)) == -1) {
@@ -222,6 +197,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         write(wfd,&status,sizeof(int));
                         close(client_sock);
                         close(wfd);
+                        free(try);
                         exit(0);
                     }
                     gen_field(arr_info[c].myShips,arr_info[c].myShips_info,0);
@@ -392,6 +368,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                             w = write(wfd,&arr_info[c].myShips_info[i][j],sizeof(int));dprintf(1,"w = %d ",w);
                         }
                     }
+                    free(try);
                 }
                 // HANDLING MOVE
                 else if(strlen(mes) == 3 && mes[0]=='m' && mes[1]>=48 && mes[2]>=48 && mes[1]<=57 && mes[1]<=57){
@@ -629,6 +606,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         status = 2;
                         w = write(wfd,&status,sizeof(int));
                     }
+                    free(try);
                 }
                 // JUST MESSAGES
                 else{
@@ -706,6 +684,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 // dprintf(1,"send_to_sender[%d]",sval);
                 int status = 2;
                 write(wfd,&status,sizeof(int));
+                free(try);
                 }
                 
             }
@@ -713,81 +692,100 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
       }
 //    } while ((rval > 0) && (strncmp(ibuf,GET,3)));
     close(wfd);
+    free(bd);
     printf("session DIEEEEEEEEEE \n");
-   exit(0);
+    exit(0);
 }
 
 
 int main(int argc, char *argv[]) {
-   int sock;
-   socklen_t length;
-   struct sockaddr_in server;
-   int msgsock;
-   char ibuf[BUF];
-   char obuf[BUF];
-   int rval,sval;
-   const int enable = 1; 
+    printf("start ");
+    int sock;
+    int* bd;
+    socklen_t length;
+    struct sockaddr_in server;
+    int msgsock;
+    char ibuf[BUF];
+    char obuf[BUF];
+    int rval,sval;
+    int fd_bd;
+    const int enable = 1; 
+    if ((fd_bd = open(BD, O_RDWR|O_CREAT|O_TRUNC,0664)) == -1) {
+        perror("open: ");
+        exit(errno);
+    }
+    lseek(fd_bd, MAX_USERS*PERSON_INFO_SIZE*sizeof(int), SEEK_SET);
+    write(fd_bd, "", 1);
+    if ((bd = (int*)mmap(NULL,MAX_USERS*PERSON_INFO_SIZE*sizeof(int) , PROT_READ|PROT_WRITE, MAP_SHARED, fd_bd, 0)) == (void *)-1) {
+        perror("mmap bd: ");
+        exit(errno);    
+    }
+    memset(bd,0,MAX_USERS*PERSON_INFO_SIZE*sizeof(int));
+    msync(bd, MAX_USERS*PERSON_INFO_SIZE*sizeof(int), MS_SYNC);
+    munmap(bd, MAX_USERS*PERSON_INFO_SIZE*sizeof(int));
 
 
-   struct sigaction new_act, old_act;
-   sigemptyset (&new_act.sa_mask);
-   new_act.sa_flags = SA_RESTART;
-   new_act.sa_handler = child_handler;
-   sigaction (SIGCHLD, &new_act, &old_act);
+    struct sigaction new_act, old_act;
+    sigemptyset (&new_act.sa_mask);
+    new_act.sa_flags = SA_RESTART;
+    new_act.sa_handler = child_handler;
+    sigaction (SIGCHLD, &new_act, &old_act);
 
-   sock = socket(AF_INET, SOCK_STREAM, 0);
-   if (sock == -1) {
-      perror("opening stream socket");
-      exit(1);
-   }
-   if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) exit(2);
-   server.sin_family = AF_INET;
-   server.sin_addr.s_addr = htonl(INADDR_ANY);
-   if(argc == 2) server.sin_port = htons(atoi(argv[1]));
-   else server.sin_port = 0;
-   
-   if (bind(sock, (struct sockaddr *) &server, sizeof server)  == -1) {
-      perror("binding stream socket");
-      exit(1);
-   }
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == -1) {
+        perror("opening stream socket");
+        exit(1);
+    }
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) exit(2);
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = htonl(INADDR_ANY);
+    server.sin_port = htons(66666);
 
-   length = sizeof server;
-   if (getsockname(sock,(struct sockaddr *) &server, &length) == -1) {
-      perror("getting socket name");
-      exit(1);
-   }
-   printf("Socket port %d\n", ntohs(server.sin_port));
 
-   listen(sock, 5);
+    if (bind(sock, (struct sockaddr *) &server, sizeof server)  == -1) {
+        perror("binding stream socket");
+        exit(1);
+    }
+
+    length = sizeof server;
+    if (getsockname(sock,(struct sockaddr *) &server, &length) == -1) {
+        perror("getting socket name");
+        exit(1);
+    }
+ 
+    printf("Socket port %d\n", ntohs(server.sin_port));
+
+    listen(sock, 5);
     pid_t cpid;
 
 
-    int arr[] ={11,12,13,14,15,16,17,18,19,20,21,22,23,24};
+    int arr[MAX_USERS];
+    for(int i = 0 ; i < MAX_USERS ; i++)arr[i]=i+OFFSET_FOR_SOCKFD;
     int counter = 0;
-    char *names[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    char *names[MAX_USERS] = {NULL};
     int mat_inc[14][14] = {0};
     struct info arr_info[14];
     int pipe_fd[14][2];
-   
+
     int fd;
     int rd;
     int buf_pipe[500];
     memset(buf_pipe,0,sizeof(buf_pipe));
 
-   do {
-      if ((msgsock = accept(sock,(struct sockaddr *) NULL,(socklen_t *) NULL)) == -1) 
-         perror("accept");
-      else{
-         int i;
-         char ibuf[BUF];
-         char* name;
-         memset(ibuf, 0, BUF);
-         if ((rval = read(msgsock, ibuf, 1024)) == -1){
+    do {
+        if ((msgsock = accept(sock,(struct sockaddr *) NULL,(socklen_t *) NULL)) == -1) 
+            perror("accept");
+        else{
+            int i;
+            char ibuf[BUF];
+            char* name;
+            memset(ibuf, 0, BUF);
+            if ((rval = read(msgsock, ibuf, 1024)) == -1){
             perror("reading stream message");
-         }
+            }
 
 
-         if(strncmp(ibuf,"POST",4)==0){
+            if(strncmp(ibuf,"POST",4)==0){
             dprintf(1,"[%s]\n",ibuf);
             for(i = 5 ; ibuf[i] != ' ' ; i++){
             }
@@ -797,9 +795,9 @@ int main(int argc, char *argv[]) {
                 name[i-5] = ibuf[i];
             }
             dprintf(1,"name[%s]\n",name);
-         }
+            }
 
-         else if(strncmp(ibuf,"GET",3)==0){
+            else if(strncmp(ibuf,"GET",3)==0){
             dprintf(1,"[%s]\n",ibuf);
             for(i = 4 ; ibuf[i] != ' ' ; i++){
             }
@@ -809,7 +807,7 @@ int main(int argc, char *argv[]) {
                 name[i-4] = ibuf[i];
             }
             dprintf(1,"name[%s]\n",name);
-         }
+            }
 
         
         for(i = 0 ; i < counter ; i++){
@@ -821,7 +819,7 @@ int main(int argc, char *argv[]) {
                 // pipe(pipe_fd[i]);
                 dprintf(1,"%d start SESSION\n",arr[i]);
                 if(cpid == 0){
-                    session(arr[i],arr,counter,names,ibuf,name,arr_info,101+i*2,mat_inc);
+                    session(arr[i],arr,counter,names,ibuf,name,arr_info,101+i*2,mat_inc,fd_bd);
                 }
                 break;
             }
@@ -839,7 +837,7 @@ int main(int argc, char *argv[]) {
             cpid = fork();
             if(cpid == 0){
                 // close(pipe_fd[counter][0]);
-                session(arr[counter],arr,counter,names,ibuf,name,arr_info,101+counter*2,mat_inc);
+                session(arr[counter],arr,counter,names,ibuf,name,arr_info,101+counter*2,mat_inc,fd_bd);
             }
         }
 
@@ -937,7 +935,7 @@ int main(int argc, char *argv[]) {
 
         } 
     memset(buf_pipe,0,sizeof(buf_pipe));
-   } while(strcmp(ibuf,FIN));
+    } while(strcmp(ibuf,FIN));
 
-   exit(0);
+    exit(0);
 }

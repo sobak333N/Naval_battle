@@ -25,7 +25,7 @@ try:
         text = data.decode()
         answer = '''<html>
 <head><title>U HAVE NEW MESSAGE</title></head>
-<body>\n'''
+<body>'''
         left = 0 
         right = 0
         while right < len(text):
@@ -33,7 +33,7 @@ try:
                 answer+= '<a>'
                 answer+= 'MESSAGE:'
                 answer+=text[left:right]
-                answer+='/</a>\n'
+                answer+='/</a>'
                 right+=1
                 left = right
             else:
@@ -42,8 +42,8 @@ try:
         answer+= '<a>'
         answer+= 'FROM:'
         answer+=text[left:right]
-        answer+='/</a>\n'
-        answer+='</pre><hr></body>\n</html>\n'
+        answer+='/</a>'
+        answer+='</pre><hr></body></html>'
         # print('html code', answer)
 
         # response = 'Hello from the server!'

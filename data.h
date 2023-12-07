@@ -45,7 +45,38 @@ Content-Type: text/html;charset=utf-8\n\
 #include <sys/types.h>
 #include <math.h>
 #include <dirent.h>
+struct user_info{
+    int inGame;
+    int op;
+    int myTurn;
+    int left;
+    int myShips[10][10];
+    int myShots[10][10];
+    int myShips_info[10][5];
+};
 void feel_two_xd(int field[10][10] , int j , int ships[10][5]);
 void rand_pos(int ships[10][5] , int num);
 void feel_one(int field[10][10], int j , int ships[10][5]);
 void gen_field(int field[10][10],int ships[10][5],int t);
+void tmp_user(struct user_info user, int offset , int* bd);
+void print_matrix(int mat[10][10]);
+void generate_shots(int shots[10][10]);
+
+#define BUF 2048
+#define BUF_UNIX 100
+#define PERSON_INFO_SIZE 154
+#define MAX_USERS 100
+#define OFFSET_FOR_SOCKFD 11
+
+#define START_UNIX_SOCK_PATH "/tmp/unix_start1.server"
+#define HANDLER_MOVE_UNIX_SOCK_PATH1 "/tmp/unix_handler_move1.server"
+#define HANDLER_MOVE_UNIX_SOCK_PATH2 "/tmp/unix_handler_move2.server"
+#define ERROR_START__UNIX_SOCK_PATH1 "/tmp/unix_error1.server"
+
+#define SERVER_PATH "/tmp/unix_chat.server"
+#define CLIENT_PATH "unix_sock.client"
+#define FIN "exit"
+#define GET "GET"
+#define BD "bd"
+#define DATA "Answer\n"
+#define errExit(msg)    do { perror(msg); _exit(EXIT_FAILURE); } while (0)
