@@ -14,6 +14,67 @@ struct info{
 };
 
 
+void start_session(int msgsock, char ibuf[]){
+    char obuf[BUF];
+    int sval,f;
+    struct stat filestat;
+    if(strncmp(ibuf,"GET",3)==0){
+        if ((f = open("start_page", O_RDONLY)) == -1) {
+            if ((f = open("error", O_RDONLY)) == -1){
+                perror("open: ");
+                exit(errno);
+            }
+        }
+        fstat(f , &filestat);
+        int size = filestat.st_size;
+        char* try;
+        try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
+        sval=send(msgsock,try,strlen(try),0);
+        free(try);
+    }
+    if(strncmp(ibuf,"POST",4)==0){
+        int i,rc;
+        for(i = strlen(ibuf)-1 ; ibuf[i]!='=' ;i--){}
+        char* name = malloc(sizeof(char)*(strlen(ibuf)-i));
+        int c = 0;
+        int tmpI = i;
+        i++;
+        while(i<strlen(ibuf)){name[c]=ibuf[i];c++;i++;}
+        dprintf(1,"name[%s]\n",name);
+        for(i = 0 ; ibuf[i]!=':';i++){}
+        for(c = i; ibuf[c]!='U';c++){}
+        char* host = malloc(sizeof(char)*(c-i));
+        int j = 0;
+        i+=2;
+        while(i<c){host[j]=ibuf[i];i++;j++;}
+        dprintf(1,"host[%s]\n",host);
+        int client_sock = open_unix_sock("new_link.py");
+        rc = send(client_sock, host, strlen(host), 0);
+        rc = send(client_sock, " ", 1, 0);
+        rc = send(client_sock, name, strlen(name), 0);
+        rc = send(client_sock, "F" , 1 , 0);
+        memset(obuf,0,BUF);
+        rc = recv(client_sock, obuf, BUF,0);
+        close(client_sock);
+        if ((f = open("answer", O_RDONLY)) == -1) {
+            if ((f = open("error", O_RDONLY)) == -1){
+                perror("open: ");
+                exit(errno);
+            }
+        }
+        fstat(f , &filestat);
+        int size = filestat.st_size;
+        char* try;
+        try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
+        sval=send(msgsock,try,strlen(try),0);
+        sval=send(msgsock,obuf,strlen(obuf),0);
+    }
+    close(msgsock);
+    exit(0);
+}
+
+
+
 void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* name,int fd_bd){
     int* bd;
     char obuf[BUF];
@@ -429,14 +490,10 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
 
 
 int main(int argc, char *argv[]) {
-    printf("start ");
-    int sock;
+    int sock,msgsock,rval,fd_bd;
     int* bd;
     socklen_t length;
     struct sockaddr_in server;
-    int msgsock;
-    int rval;
-    int fd_bd;
     const int enable = 1; 
     if ((fd_bd = open(BD, O_RDWR|O_CREAT|O_TRUNC,0664)) == -1) {
         perror("open: ");
@@ -490,6 +547,7 @@ int main(int argc, char *argv[]) {
     int arr[MAX_USERS];
     for(int i = 0 ; i < MAX_USERS ; i++)arr[i]=i+OFFSET_FOR_SOCKFD;
     int counter = 0;
+    int amountOfStart = 0;
     char *names[MAX_USERS] = {NULL};
 
     do {
@@ -523,41 +581,51 @@ int main(int argc, char *argv[]) {
             }
 
             dprintf(1,"name[%s] strlen name = %ld \n",name,strlen(name));
-            for(i = 0 ; i < counter ; i++){
-                dprintf(1,"%s ",names[i]);
-                if(strcmp(names[i],name)==0){
-                    dup2(msgsock, arr[i]);
-                    close(msgsock);
-                    cpid = fork();
-                    dprintf(1,"%d start SESSION\n",arr[i]);
-                    if(cpid == 0){
-                        session(arr[i],arr,counter,names,ibuf,name,fd_bd);
-                    }
-                    break;
-                }
-            }
-            if(i == counter){
-                dprintf(1,"accept con ");
-                dup2(msgsock, arr[counter]);
-                close(msgsock);
-                dprintf(1,"msgsock = %d \n",arr[counter]);
+
+            if(strlen(name)==1){
+                if(strncmp(ibuf,"GET",3)==0)amountOfStart++;
+                dprintf(1,"msgsock = %d \n",msgsock);
                 cpid = fork();
-                if(cpid == 0){
-                    session(arr[counter],arr,counter,names,ibuf,name,fd_bd);
+                if(cpid==0)start_session(msgsock,ibuf);
+                if(strncmp(ibuf,"POST",4)==0)amountOfStart--;
+                close(msgsock);
+            }
+            else{
+                for(i = 0 ; i < counter ; i++){
+                    dprintf(1,"%s ",names[i]);
+                    if(strcmp(names[i],name)==0){
+                        dup2(msgsock, arr[i]);
+                        close(msgsock);
+                        cpid = fork();
+                        dprintf(1,"%d start SESSION\n",arr[i]);
+                        if(cpid == 0){
+                            session(arr[i],arr,counter,names,ibuf,name,fd_bd);
+                        }
+                        break;
+                    }
+                }
+                if(i == counter){
+                    dprintf(1,"accept con ");
+                    dup2(msgsock, arr[counter]);
+                    close(msgsock);
+                    dprintf(1,"msgsock = %d \n",arr[counter]);
+                    cpid = fork();
+                    if(cpid == 0){
+                        session(arr[counter],arr,counter,names,ibuf,name,fd_bd);
+                    }
+                }
+
+                int flag = 0;
+                for(int j = 0 ; j < counter ; j++){
+                    dprintf(1,"%s ",names[i]);
+                    if(strcmp(names[j],name)==0){flag=1;dprintf(1,"%s %s\n",names[j],name);}
+                }
+                if(!flag){
+                    names[counter] = malloc(strlen(name)+1);
+                    strcpy(names[counter],name);
+                    counter++;
                 }
             }
-
-            int flag = 0;
-            for(int j = 0 ; j < counter ; j++){
-                dprintf(1,"%s ",names[i]);
-                if(strcmp(names[j],name)==0){flag=1;dprintf(1,"%s %s\n",names[j],name);}
-            }
-            if(!flag){
-                names[counter] = malloc(strlen(name)+1);
-                strcpy(names[counter],name);
-                counter++;
-            }
-
         } 
     } while(1);
 

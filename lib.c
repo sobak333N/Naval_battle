@@ -198,6 +198,8 @@ int open_unix_sock(char* name_of_prog){
     if(strcmp(name_of_prog,"handler_move.py")==0)strcpy(server_sockaddr.sun_path, HANDLER_MOVE_UNIX_SOCK_PATH1);
     if(strcmp(name_of_prog,"handler_move2.py")==0)strcpy(server_sockaddr.sun_path, HANDLER_MOVE_UNIX_SOCK_PATH2);
     if(strcmp(name_of_prog,"handler_chat.py")==0)strcpy(server_sockaddr.sun_path, HANDLER_CHAT_UNIX_SOCK_PATH );
+    if(strcmp(name_of_prog,"new_link.py")==0)strcpy(server_sockaddr.sun_path, NEW_LINK_UNIX_SOCK_PATH);
+
 
 
     rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);

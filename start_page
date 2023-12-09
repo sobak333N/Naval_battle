@@ -1,0 +1,27 @@
+
+HTTP/1.1 200 OK
+Content-Type: text/html;charset=utf-8
+<html>
+<title>WELCOME</title>
+<head>
+</head>
+
+<body bgcolor="#333">
+
+
+<a style="font-family: Arial, sans-serif; font-size: 20px; font-weight: bold; color: blue;">WELCOME TO THE SEA BATTLE</a><br>
+<a style="font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; color: rgba(238, 234, 9, 0.808);">INPUT THE NAME YOU WANT TO PLAY UNDER</a><br>
+
+
+<form name="form" action="" method="post">
+    <div>
+        <label for="name">YOUR NAME</label>
+        <input name="name" id="login" value="" />
+    </div>
+    <div>
+        <button>GET LINK</button>
+    </div>
+</form>
+
+</body>
+</html>

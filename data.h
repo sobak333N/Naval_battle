@@ -67,17 +67,22 @@ int open_unix_sock(char* name_of_prog);
 #define BUF_UNIX 100
 #define PERSON_INFO_SIZE 254
 #define MAX_USERS 50
-#define OFFSET_FOR_SOCKFD 11
+#define OFFSET_FOR_SOCKFD 111
+#define OFFSET_FOR_NEW_SOCKFD 211
 
 #define START_UNIX_SOCK_PATH "/tmp/unix_start1.server"
 #define HANDLER_MOVE_UNIX_SOCK_PATH1 "/tmp/unix_handler_move1.server"
 #define HANDLER_MOVE_UNIX_SOCK_PATH2 "/tmp/unix_handler_move2.server"
 #define ERROR_START__UNIX_SOCK_PATH1 "/tmp/unix_error1.server"
 #define HANDLER_CHAT_UNIX_SOCK_PATH "/tmp/unix_chat.server"
+#define NEW_LINK_UNIX_SOCK_PATH "/tmp/unix_link.server"
+
+
 #define CLIENT_PATH "unix_sock.client"
 
 #define FIN "exit"
 #define GET "GET"
 #define BD "bd"
+#define BD_NAMES "bd_names"
 #define DATA "Answer\n"
 #define errExit(msg)    do { perror(msg); _exit(EXIT_FAILURE); } while (0)
