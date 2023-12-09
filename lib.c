@@ -149,4 +149,61 @@ void tmp_user(struct user_info* user, int offset , int* bd){
     print_matrix(user->myShots);
 }
 
+int open_unix_sock(char* name_of_prog){
+    static char *newargv[] = {NULL, NULL, NULL};
+    static char *newenviron[] = {NULL};
+    static char *cmd = "/usr/bin/python3";
+    pid_t pid;
 
+    newargv[0] = "python3";
+    newargv[1] = name_of_prog;
+
+    if((pid = fork() ) == -1){perror("fork");exit(1);}
+    int status_child;
+    if(pid == 0){
+        if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
+        exit(0);
+    }
+    int client_sock, rc, len;
+    struct sockaddr_un server_sockaddr; 
+    struct sockaddr_un client_sockaddr; 
+    char cpath[16];
+
+
+    len = sizeof(client_sockaddr);
+    memset(&server_sockaddr, 0, sizeof(struct sockaddr_un));
+    memset(&client_sockaddr, 0, sizeof(struct sockaddr_un));
+    
+    client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (client_sock == -1) {
+        perror("socket");
+        exit(1);
+    }
+
+
+    client_sockaddr.sun_family = AF_UNIX;   
+    strcpy(client_sockaddr.sun_path, cpath); 
+    
+    unlink(cpath);
+    rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
+    if (rc == -1){
+        perror("bind");
+        close(client_sock);
+        exit(1);
+    }
+        
+    server_sockaddr.sun_family = AF_UNIX;
+    if(strcmp(name_of_prog,"error_handler.py")==0)strcpy(server_sockaddr.sun_path, ERROR_START__UNIX_SOCK_PATH1);
+    if(strcmp(name_of_prog,"start.py")==0)strcpy(server_sockaddr.sun_path, START_UNIX_SOCK_PATH);
+    if(strcmp(name_of_prog,"handler_move.py")==0)strcpy(server_sockaddr.sun_path, HANDLER_MOVE_UNIX_SOCK_PATH1);
+    if(strcmp(name_of_prog,"handler_move2.py")==0)strcpy(server_sockaddr.sun_path, HANDLER_MOVE_UNIX_SOCK_PATH2);
+    if(strcmp(name_of_prog,"handler_chat.py")==0)strcpy(server_sockaddr.sun_path, HANDLER_CHAT_UNIX_SOCK_PATH );
+
+
+    rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
+    
+    while(rc == -1){
+        rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
+    }
+    return client_sock;
+}

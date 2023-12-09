@@ -15,16 +15,9 @@ struct info{
 
 
 void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* name,int fd_bd){
-
-    dprintf(1,"%d start SESSION\n",msgsock);
-    int n;   
-    int sock;
     int* bd;
-    socklen_t length;
-    struct sockaddr_in server;
     char obuf[BUF];
-    int rval,sval;
-    const int enable = 1;
+    int sval,client_sock,rc;
     if ((bd = (int*)mmap(NULL,MAX_USERS*PERSON_INFO_SIZE*sizeof(int) , PROT_READ|PROT_WRITE, MAP_SHARED, fd_bd, 0)) == (void *)-1) {
         perror("mmap bd: ");
         exit(errno);    
@@ -36,7 +29,6 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
     if(strncmp(ibuf,"GET",3)==0){
         struct stat filestat;
         int f;
-        int i;
         if ((f = open("welcome", O_RDONLY)) == -1) {
             if ((f = open("error", O_RDONLY)) == -1){
                 perror("open: ");
@@ -80,16 +72,6 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 if(strcmp(names[c2],name)==0){break;}
             }
 
-
-            struct user_info reciever;
-            struct user_info sender;
-            tmp_user(&reciever,c,bd);
-            tmp_user(&sender,c2,bd);
-            print_matrix(reciever.myShips);
-            print_matrix(reciever.myShots);
-            print_matrix(sender.myShips);
-            print_matrix(sender.myShots);
-
             if(c == counter){
                 if ((f = open("nouser", O_RDONLY)) == -1) {
                     if ((f = open("error", O_RDONLY)) == -1){
@@ -104,9 +86,17 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 sval=send(msgsock,try,strlen(try),0);
             }
             else{
+                struct user_info reciever;
+                struct user_info sender;
+                tmp_user(&reciever,c,bd);
+                tmp_user(&sender,c2,bd);
+                print_matrix(reciever.myShips);
+                print_matrix(reciever.myShots);
+                print_matrix(sender.myShips);
+                print_matrix(sender.myShots);
                 if(strcmp(mes,"start")==0){
                     int flag1 = 0, flag2 = 0,flag3 = 0,flag4 = 0;
-                    if(reciever.op==c2 && sender.op == c){
+                    if(reciever.op==c2 && sender.op == c && (c2!=c && c2!=0)){
                         // u allready play with this player
                         flag1 = 1;
                     }
@@ -122,57 +112,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         flag4 = 1;
                     }
                     if(flag1 || flag2 || flag3 || flag4){
-                        static char *newargv[] = {NULL, NULL, NULL};
-                        static char *newenviron[] = {NULL};
-                        static char *cmd = "/usr/bin/python3";
-                        pid_t pid;
-
-                        newargv[0] = "python3";
-                        newargv[1] = "error_hadler.py";
-
-                        if((pid = fork() ) == -1){perror("fork");exit(1);}
-                        int status_child;
-                        if(pid == 0){
-                            if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
-                            exit(0);
-                        }
-                        int client_sock, rc, len;
-                        struct sockaddr_un server_sockaddr; 
-                        struct sockaddr_un client_sockaddr; 
-                        char buf[BUF_UNIX];
-                        size_t bs=BUF_UNIX;
-                        char cpath[16];
-
-                    
-                        len = sizeof(client_sockaddr);
-                        memset(&server_sockaddr, 0, sizeof(struct sockaddr_un));
-                        memset(&client_sockaddr, 0, sizeof(struct sockaddr_un));
-                        
-                        client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-                        if (client_sock == -1) {
-                            perror("socket");
-                            exit(1);
-                        }
-
-
-                        client_sockaddr.sun_family = AF_UNIX;   
-                        strcpy(client_sockaddr.sun_path, cpath); 
-                        
-                        unlink(cpath);
-                        rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
-                        if (rc == -1){
-                            perror("bind");
-                            close(client_sock);
-                            exit(1);
-                        }
-                            
-                        server_sockaddr.sun_family = AF_UNIX;
-                        strcpy(server_sockaddr.sun_path, ERROR_START__UNIX_SOCK_PATH1);
-                        rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
-                        
-                        while(rc == -1){
-                            rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
-                        }
+                        client_sock = open_unix_sock("error_handler.py");
                         
                         if(flag1)rc = send(client_sock, "A", 1, 0);
                         if(flag2)rc = send(client_sock, "B", 1, 0);
@@ -210,59 +150,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     print_matrix(sender.myShots);
 
 
-
-                    static char *newargv[] = {NULL, NULL, NULL};
-                    static char *newenviron[] = {NULL};
-                    static char *cmd = "/usr/bin/python3";
-                    pid_t pid;
-
-                    newargv[0] = "python3";
-                    newargv[1] = "start.py";
-
-                    if((pid = fork() ) == -1){perror("fork");exit(1);}
-                    int status_child;
-                    if(pid == 0){
-                        if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
-                        exit(0);
-                    }
-                    int client_sock, rc, len;
-                    struct sockaddr_un server_sockaddr; 
-                    struct sockaddr_un client_sockaddr; 
-                    char buf[BUF_UNIX];
-                    size_t bs=BUF_UNIX;
-                    char cpath[16];
-
-                
-                    len = sizeof(client_sockaddr);
-                    memset(&server_sockaddr, 0, sizeof(struct sockaddr_un));
-                    memset(&client_sockaddr, 0, sizeof(struct sockaddr_un));
-                    
-                    client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-                    if (client_sock == -1) {
-                        perror("socket");
-                        exit(1);
-                    }
-
-
-                    client_sockaddr.sun_family = AF_UNIX;   
-                    strcpy(client_sockaddr.sun_path, cpath); 
-                    
-                    unlink(cpath);
-                    rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
-                    if (rc == -1){
-                        perror("bind");
-                        close(client_sock);
-                        exit(1);
-                    }
-                        
-                    server_sockaddr.sun_family = AF_UNIX;
-                    strcpy(server_sockaddr.sun_path, START_UNIX_SOCK_PATH);
-                    rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
-                    
-                    while(rc == -1){
-                        rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
-                    }
-                    
+                    client_sock = open_unix_sock("start.py");
                     rc = send(client_sock, name, strlen(name), 0);
                     rc = send(client_sock, " ", 1, 0);
                     for(int i = 0 ; i < 10 ; i++){
@@ -276,6 +164,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         }
                     }
                     rc = send(client_sock, "F" , 1 , 0);
+                    memset(obuf,0,BUF);
                     rc = recv(client_sock, obuf, BUF,0);
                     sval=send(arr[c],obuf,strlen(obuf),0);
 
@@ -283,49 +172,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     memset(obuf,0,BUF);
 
                     close(client_sock);
-                    int client_sock2, len2;
-                    struct sockaddr_un server_sockaddr2; 
-                    struct sockaddr_un client_sockaddr2; 
-                    char buf2[BUF_UNIX];
-                    size_t bs2=BUF_UNIX;
-                    char cpath2[16];
-                    newargv[0] = "python3";
-                    newargv[1] = "start.py";
-
-
-                    if((pid = fork() ) == -1){perror("fork");exit(1);}
-                    if(pid == 0){
-                        if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
-                    }
-                    len2 = sizeof(client_sockaddr2);
-                    memset(&server_sockaddr2, 0, sizeof(struct sockaddr_un));
-                    memset(&client_sockaddr2, 0, sizeof(struct sockaddr_un));
-                    
-                    client_sock2 = socket(AF_UNIX, SOCK_STREAM, 0);
-                    if (client_sock2 == -1) {
-                        perror("socket");
-                        exit(1);
-                    }
-
-
-                    client_sockaddr2.sun_family = AF_UNIX;   
-                    strcpy(client_sockaddr2.sun_path, cpath2); 
-                    
-                    unlink(cpath2);
-                    rc = bind(client_sock2, (struct sockaddr *) &client_sockaddr2, len2);
-                    if (rc == -1){
-                        perror("bind");
-                        close(client_sock2);
-                        exit(1);
-                    }
-                        
-                    server_sockaddr2.sun_family = AF_UNIX;
-                    strcpy(server_sockaddr2.sun_path, START_UNIX_SOCK_PATH);
-                    rc = connect(client_sock2, (struct sockaddr *) &server_sockaddr2, len2);
-                    
-                    while(rc == -1){
-                        rc = connect(client_sock2, (struct sockaddr *) &server_sockaddr2, len2);
-                    }
+                    int client_sock2 = open_unix_sock("start.py");
 
                     rc = send(client_sock2, rec, strlen(rec), 0);
                     rc = send(client_sock2, " ", 1, 0);
@@ -445,60 +292,9 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         reciever.myShips[mes[1]-48][mes[2]-48] = 2;
                     }
 
-                    static char *newargv[] = {NULL, NULL, NULL};
-                    static char *newenviron[] = {NULL};
-                    static char *cmd = "/usr/bin/python3";
-                    pid_t pid;
-                    int rc;
-                    newargv[0] = "python3";
-                    newargv[1] = "handler_move.py";
 
                     if(!(flag1+flag2+flag3)){
-                        memset(obuf,0,BUF);
-                        if((pid = fork() ) == -1){perror("fork");exit(1);}
-                        int status_child;
-                        if(pid == 0){
-                            if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
-                            exit(0);
-                        }
-                        int client_sock, len;
-                        struct sockaddr_un server_sockaddr; 
-                        struct sockaddr_un client_sockaddr; 
-                        char buf[BUF_UNIX];
-                        size_t bs=BUF_UNIX;
-                        char cpath[16];
-
-                    
-                        len = sizeof(client_sockaddr);
-                        memset(&server_sockaddr, 0, sizeof(struct sockaddr_un));
-                        memset(&client_sockaddr, 0, sizeof(struct sockaddr_un));
-                        
-                        client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-                        if (client_sock == -1) {
-                            perror("socket");
-                            exit(1);
-                        }
-
-
-                        client_sockaddr.sun_family = AF_UNIX;   
-                        strcpy(client_sockaddr.sun_path, cpath); 
-                        
-                        unlink(cpath);
-                        rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
-                        if (rc == -1){
-                            perror("bind");
-                            close(client_sock);
-                            exit(1);
-                        }
-                            
-                        server_sockaddr.sun_family = AF_UNIX;
-                        strcpy(server_sockaddr.sun_path, HANDLER_MOVE_UNIX_SOCK_PATH1);
-                        rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
-                        
-                        while(rc == -1){
-                            rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
-                        }
-                        
+                        client_sock=open_unix_sock("handler_move.py");                              
                         rc = send(client_sock, name, strlen(name), 0);
                         rc = send(client_sock, " ", 1, 0);
                         for(int i = 0 ; i < 10 ; i++){
@@ -516,54 +312,14 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         }
                         if(end)rc = send(client_sock, "L" , 1 , 0);
                         rc = send(client_sock, "F" , 1 , 0);
+                        memset(obuf,0,BUF);
                         rc = recv(client_sock, obuf, BUF,0);
                         sval=send(arr[c],obuf,strlen(obuf),0);
                         close(client_sock);
                     }
                     memset(obuf,0,BUF);
-                    int client_sock2, len2,status_child;
-                    struct sockaddr_un server_sockaddr2; 
-                    struct sockaddr_un client_sockaddr2; 
-                    char buf2[BUF_UNIX];
-                    size_t bs2=BUF_UNIX;
-                    char cpath2[16];
-                    newargv[0] = "python3";
-                    newargv[1] = "handler_move2.py";
-
-
-                    if((pid = fork() ) == -1){perror("fork");exit(1);}
-                    if(pid == 0){
-                        if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
-                    }
-                    len2 = sizeof(client_sockaddr2);
-                    memset(&server_sockaddr2, 0, sizeof(struct sockaddr_un));
-                    memset(&client_sockaddr2, 0, sizeof(struct sockaddr_un));
                     
-                    client_sock2 = socket(AF_UNIX, SOCK_STREAM, 0);
-                    if (client_sock2 == -1) {
-                        perror("socket");
-                        exit(1);
-                    }
-
-
-                    client_sockaddr2.sun_family = AF_UNIX;   
-                    strcpy(client_sockaddr2.sun_path, cpath2); 
-                    
-                    unlink(cpath2);
-                    rc = bind(client_sock2, (struct sockaddr *) &client_sockaddr2, len2);
-                    if (rc == -1){
-                        perror("bind");
-                        close(client_sock2);
-                        exit(1);
-                    }
-                        
-                    server_sockaddr2.sun_family = AF_UNIX;
-                    strcpy(server_sockaddr2.sun_path, HANDLER_MOVE_UNIX_SOCK_PATH2);
-                    rc = connect(client_sock2, (struct sockaddr *) &server_sockaddr2, len2);
-                    
-                    while(rc == -1){
-                        rc = connect(client_sock2, (struct sockaddr *) &server_sockaddr2, len2);
-                    }
+                    int client_sock2 = open_unix_sock("handler_move2.py");
 
                     rc = send(client_sock2, rec, strlen(rec), 0);
                     rc = send(client_sock2, " ", 1, 0);
@@ -605,8 +361,6 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
 
                     sval=send(msgsock,try,strlen(try),0);
                     sval=send(msgsock,obuf,strlen(obuf),0);
-                    int w;
-                    int status;
                     if(end){
                         for(int i = 0 ; i < PERSON_INFO_SIZE ; i++)bd[PERSON_INFO_SIZE*c+i]=0;
                         for(int i = 0 ; i < PERSON_INFO_SIZE ; i++)bd[PERSON_INFO_SIZE*c2+i]=0;
@@ -642,87 +396,33 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                 }
                 // JUST MESSAGES
                 else{
-                static char *newargv[] = {NULL, NULL, NULL};
-                static char *newenviron[] = {NULL};
-                static char *cmd = "/usr/bin/python3";
-                pid_t pid;
-
-                newargv[0] = "python3";
-                newargv[1] = "handler_chat.py";
-
-                if((pid = fork() ) == -1){perror("fork");exit(1);}
-                int status_child;
-                if(pid == 0){
-                    if((status_child=execve(cmd,newargv,newenviron))==-1){perror("execve");exit(1);};
-                }
-
-
-
-                int client_sock, rc, len;
-                struct sockaddr_un server_sockaddr; 
-                struct sockaddr_un client_sockaddr; 
-                char buf[BUF_UNIX];
-                size_t bs=BUF_UNIX;
-                char cpath[16];
-
-            
-                len = sizeof(client_sockaddr);
-                memset(&server_sockaddr, 0, sizeof(struct sockaddr_un));
-                memset(&client_sockaddr, 0, sizeof(struct sockaddr_un));
-                
-                client_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-                if (client_sock == -1) {
-                    perror("socket");
-                    exit(1);
-                }
-
-
-                client_sockaddr.sun_family = AF_UNIX;   
-                strcpy(client_sockaddr.sun_path, cpath); 
-                
-                unlink(cpath);
-                rc = bind(client_sock, (struct sockaddr *) &client_sockaddr, len);
-                if (rc == -1){
-                    perror("bind");
+                    client_sock = open_unix_sock("handler_chat.py");
+                    rc = send(client_sock, mes, strlen(mes), 0);
+                    rc = send(client_sock, name, strlen(name), 0);
+                    memset(obuf,0,BUF);
+                    rc = recv(client_sock, obuf, BUF,0);
                     close(client_sock);
-                    exit(1);
-                }
-                    
-                server_sockaddr.sun_family = AF_UNIX;
-                strcpy(server_sockaddr.sun_path, SERVER_PATH);
-                rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
-                while(rc == -1){
-                rc = connect(client_sock, (struct sockaddr *) &server_sockaddr, len);
-                }
-                rc = send(client_sock, mes, strlen(mes), 0);
-                rc = send(client_sock, name, strlen(name), 0);
-                rc = recv(client_sock, obuf, BUF,0);
-                close(client_sock);
-                dprintf(1,"%s\n",obuf);
-                dprintf(1,"%s %d\n",names[c],arr[c]);
-                sval=send(arr[c],obuf,strlen(obuf),0);
+                    sval=send(arr[c],obuf,strlen(obuf),0);
 
-                if ((f = open("send", O_RDONLY)) == -1) {
-                        if ((f = open("error", O_RDONLY)) == -1){
-                            perror("open: ");
-                            exit(errno);
+                    if ((f = open("send", O_RDONLY)) == -1) {
+                            if ((f = open("error", O_RDONLY)) == -1){
+                                perror("open: ");
+                                exit(errno);
+                            }
                         }
-                    }
-                fstat(f , &filestat);
-                int size = filestat.st_size;
-                char* try;
-                try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
-                sval=send(msgsock,try,strlen(try),0);
-                // dprintf(1,"send_to_sender[%d]",sval);
-                int status = 2;
-                free(try);
+                    fstat(f , &filestat);
+                    int size = filestat.st_size;
+                    char* try;
+                    try = (char *)mmap(0,size , PROT_READ , MAP_SHARED,f,0);
+                    sval=send(msgsock,try,strlen(try),0);
+                    // dprintf(1,"send_to_sender[%d]",sval);
+                    free(try);
                 }
                 
             }
             
       }
-//    } while ((rval > 0) && (strncmp(ibuf,GET,3)));
-    free(bd);
+
     printf("session DIEEEEEEEEEE \n");
     exit(0);
 }
@@ -735,9 +435,7 @@ int main(int argc, char *argv[]) {
     socklen_t length;
     struct sockaddr_in server;
     int msgsock;
-    char ibuf[BUF];
-    char obuf[BUF];
-    int rval,sval;
+    int rval;
     int fd_bd;
     const int enable = 1; 
     if ((fd_bd = open(BD, O_RDWR|O_CREAT|O_TRUNC,0664)) == -1) {
@@ -769,7 +467,7 @@ int main(int argc, char *argv[]) {
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) exit(2);
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = htonl(INADDR_ANY);
-    server.sin_port = htons(66666);
+    server.sin_port = htons((short int)66666);
 
 
     if (bind(sock, (struct sockaddr *) &server, sizeof server)  == -1) {
@@ -801,36 +499,30 @@ int main(int argc, char *argv[]) {
             char ibuf[BUF];
             char* name;
             memset(ibuf, 0, BUF);
-            if ((rval = read(msgsock, ibuf, 1024)) == -1){
-            perror("reading stream message");
-            }
-
+            if ((rval = read(msgsock, ibuf, 1024)) == -1)perror("reading stream message");
 
             if(strncmp(ibuf,"POST",4)==0){
-            dprintf(1,"[%s]\n",ibuf);
-            for(i = 5 ; ibuf[i] != ' ' ; i++){
+                dprintf(1,"[%s]\n",ibuf);
+                for(i = 5 ; ibuf[i] != ' ' ; i++){
+                }
+                name = malloc(sizeof(char)*(i-5));
+                
+                for(i = 5 ; ibuf[i] != ' ' ; i++){
+                    name[i-5] = ibuf[i];
+                }
             }
-            name = malloc(sizeof(char)*(i-5));
-            
-            for(i = 5 ; ibuf[i] != ' ' ; i++){
-                name[i-5] = ibuf[i];
-            }
-            dprintf(1,"name[%s]\n",name);
-            }
-
             else if(strncmp(ibuf,"GET",3)==0){
-            dprintf(1,"[%s]\n",ibuf);
-            for(i = 4 ; ibuf[i] != ' ' ; i++){
-            }
-            name = malloc(sizeof(char)*(i-4));
-            
-            for(i = 4 ; ibuf[i] != ' ' ; i++){
-                name[i-4] = ibuf[i];
-            }
-            dprintf(1,"name[%s]\n",name);
+                dprintf(1,"[%s]\n",ibuf);
+                for(i = 4 ; ibuf[i] != ' ' ; i++){
+                }
+                name = malloc(sizeof(char)*(i-4));
+                
+                for(i = 4 ; ibuf[i] != ' ' ; i++){
+                    name[i-4] = ibuf[i];
+                }
             }
 
-        
+            dprintf(1,"name[%s] strlen name = %ld \n",name,strlen(name));
             for(i = 0 ; i < counter ; i++){
                 dprintf(1,"%s ",names[i]);
                 if(strcmp(names[i],name)==0){

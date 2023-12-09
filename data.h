@@ -61,6 +61,7 @@ void gen_field(int field[10][10],int ships[10][5],int t);
 void tmp_user(struct user_info* user, int offset , int* bd);
 void print_matrix(int mat[10][10]);
 void generate_shots(int shots[10][10]);
+int open_unix_sock(char* name_of_prog);
 
 #define BUF 2048
 #define BUF_UNIX 100
@@ -72,9 +73,9 @@ void generate_shots(int shots[10][10]);
 #define HANDLER_MOVE_UNIX_SOCK_PATH1 "/tmp/unix_handler_move1.server"
 #define HANDLER_MOVE_UNIX_SOCK_PATH2 "/tmp/unix_handler_move2.server"
 #define ERROR_START__UNIX_SOCK_PATH1 "/tmp/unix_error1.server"
-
-#define SERVER_PATH "/tmp/unix_chat.server"
+#define HANDLER_CHAT_UNIX_SOCK_PATH "/tmp/unix_chat.server"
 #define CLIENT_PATH "unix_sock.client"
+
 #define FIN "exit"
 #define GET "GET"
 #define BD "bd"
