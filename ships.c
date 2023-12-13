@@ -182,6 +182,7 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         rc = send(client_sock, "F", 1, 0);
                         memset(obuf,0,BUF);
                         rc = recv(client_sock, obuf, BUF,0);
+                        dprintf(1,"%s \n",obuf);
                         if ((f = open("welcome", O_RDONLY)) == -1) {
                             if ((f = open("error", O_RDONLY)) == -1){
                                 perror("open: ");
@@ -195,7 +196,6 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                         sval=send(msgsock,try,strlen(try),0);
                         sval=send(msgsock,obuf,strlen(obuf),0);
                         close(client_sock);
-                        free(try);
                         exit(0);
                     }
 
@@ -227,6 +227,8 @@ void session(int msgsock,int arr[],int counter,char* names[],char ibuf[],char* n
                     rc = send(client_sock, "F" , 1 , 0);
                     memset(obuf,0,BUF);
                     rc = recv(client_sock, obuf, BUF,0);
+                    dprintf(1,"%s \n",obuf);
+                    dprintf(1, "strlen = %ld\n",strlen(obuf));
                     sval=send(arr[c],obuf,strlen(obuf),0);
 
 

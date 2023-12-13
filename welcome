@@ -10,18 +10,21 @@ Content-Type: text/html;charset=utf-8
 first page!
 
 <form name="form1" action="" method="post">
-<div>
-<label for="rec">RECIEVER</label>
-<input name="rec" id="login" value="Hi" />
-</div>
-<div>
-<label for="mes">MESSAGE</label>
-<input name="mes" id="reg" value="Mom" />
-</div>
-<div>
-<button>Send my greetings</button>
-</div>
+    <div>
+        <label for="rec">RECIEVER</label>
+        <input name="rec" id="login" value="Hi" />
+    </div>
+    <div>
+        <label for="mes">MESSAGE</label>
+        <input name="mes" id="reg" value="Mom" />
+    </div>
+    <div>
+        <button>Send my greetings</button>
+    </div>
 </form>
+
+<button id="mama">lox</button>
+
 
 </body>
 </html>

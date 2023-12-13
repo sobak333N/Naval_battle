@@ -63,7 +63,7 @@ void print_matrix(int mat[10][10]);
 void generate_shots(int shots[10][10]);
 int open_unix_sock(char* name_of_prog);
 
-#define BUF 2048
+#define BUF 10000
 #define BUF_UNIX 100
 #define PERSON_INFO_SIZE 254
 #define MAX_USERS 50

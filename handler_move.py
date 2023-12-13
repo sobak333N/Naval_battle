@@ -67,39 +67,61 @@ try:
     i = 0
     count = 0
     cur = right+1
-
+    answer+='<table border="1">'
+    answer+='<caption>FIELD</caption>'
+    answer+='<tr height="20">'
+    answer+='<td width="20"></td>'
+    for i in range(10):
+        answer+='<td width="50">'
+        answer+=str(i)
+        answer+='</td>'
+    answer+='<td width="20"></td>'
+    for i in range(10):
+        answer+='<td width="50">'
+        answer+=str(i)
+        answer+='</td>'
+    answer+='</tr>'
+    i = 0
     while i < 10 and cur < len(text):
-        answer+= '<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">'
+        answer+='<tr height="50">'
+        answer+='<td width ="20" bgcolor="#FFFFFF">'
+        answer+=str(i)
+        answer+='</td>'
+        # answer+= '<a style="font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: blue;">'
         count = 0
         while count < 10 and cur < len(text):
+            answer+='<td width ="50" bgcolor="'
             if text[cur] == '0':
-                answer+='_'
+                answer+='#E0FFFF"'
             elif text[cur] == '1':
-                answer+='#'
+                answer+='#181721"'
             elif text[cur] == '2':
-                answer+='-'
+                answer+='#848CE9"'
             elif text[cur] == '3':
-                answer+='*'
+                answer+='#F25015"'
+            answer+='></td>'
             cur+=1
             count+=1
-        answer+='|||'
         count = 0
+        answer+='<td width ="20" bgcolor="#FFFFFF"></td>'
         while count < 10 and cur < len(text):
+            answer+='<td width ="50" bgcolor="'
             if text[cur] == '0':
-                answer+='_'
+                answer+='#E0FFFF"'
             elif text[cur] == '1':
-                answer+='#'
+                answer+='#181721"'
             elif text[cur] == '2':
-                answer+='-'
+                answer+='#848CE9"'
             elif text[cur] == '3':
-                answer+='*'
+                answer+='#F25015"'
+            answer+='></td>'
             cur+=1
             count+=1
         
         i+=1
-        answer+='</a>\n'
-        answer+='<br>'
+        answer+='</tr>\n'
 
+    answer+='</table>\n'
 
     answer+='</pre><hr></body>\n</html>\n'
     # print('html code', answer)
